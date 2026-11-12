@@ -1,11 +1,11 @@
 ---
 name: release-mono-deck
-description: Prepare a MonoDeck release commit and tag, then ask whether to push the tag. Runs only when explicitly invoked as $release-mono-deck.
+description: Prepare a local MonoDeck release commit and annotated tag. Runs only when explicitly invoked as $release-mono-deck.
 ---
 
 # Release MonoDeck
 
-Run from the MonoDeck source repository root. Review `Version.xcconfig` and `.github/workflows/ci.yml`. A request to run the full release authorizes staging and committing only `Version.xcconfig` and `CHANGELOG.md` and creating the local tag. The optional remote step covers that tag only and requires separate confirmation in chat.
+Run from the MonoDeck source repository root. Review `Version.xcconfig` and `.github/workflows/ci.yml`. A request to run the full release authorizes staging and committing only `Version.xcconfig` and `CHANGELOG.md` and creating the local tag.
 
 ## 1. Check the working tree and resume state
 
@@ -31,8 +31,4 @@ Run from the MonoDeck source repository root. Review `Version.xcconfig` and `.gi
 - Run `task test TEST_FILTER=MonoDeckTests/VersionTests`. Proceed only after tests pass and `run_tests.py` confirms the test environment exited and was cleaned up.
 - Stage with `git add -- Version.xcconfig CHANGELOG.md`. Run `git diff --cached --check` and review the staged diff. Verify only those two files are staged. Commit with a Conventional Commits message in the language of the five latest commits, such as `chore(release): vX.Y.Z`. Verify the parent is the starting HEAD and the commit contains only the two release files.
 - Create the annotated tag with `git tag -a "v<version>" -m "v<version>" <release-commit>`. Verify `git rev-parse "v<version>^{commit}"` matches the release commit, the committed version fields and changelog heading match the release, and the tree is clean.
-
-## 5. Ask whether to push the release tag
-
-- Report the version, build number, commit SHA, tag, and verification results. Ask in chat whether to push the exact tag to the named remote and explain that the push triggers CI publication. Wait for explicit approval.
-- Recheck the tag's target and push with `git push --no-follow-tags <remote> refs/tags/v<version>:refs/tags/v<version>`. Verify the remote tag matches the local annotated tag and report the result.
+- Report the version, build number, commit SHA, local tag, and verification results.
