@@ -17,9 +17,9 @@ struct ResourceSnapshotTests {
     for name in ["second", "third"] {
       let repository = Repository(url: "https://mono-deck-test.invalid/\(name).git")
       try FileManager.default.copyItem(
-        at: record.repositoryURL("repo"), to: record.repositoryURL(name))
+        at: record.repositoryDirectoryURL("repo"), to: record.repositoryDirectoryURL(name))
       _ = try await f.service.git.run(
-        ["config", "remote.origin.url", repository.url], at: record.repositoryURL(name))
+        ["config", "remote.origin.url", repository.url], at: record.repositoryDirectoryURL(name))
       record.repositories.append(repository)
     }
     try f.service.store.save(record)
@@ -41,7 +41,7 @@ struct ResourceSnapshotTests {
       for arguments in [
         ["config", "core.fsmonitor", hook.path], ["config", "core.fsmonitorHookVersion", "2"],
       ] {
-        _ = try await f.service.git.run(arguments, at: record.repositoryURL(name))
+        _ = try await f.service.git.run(arguments, at: record.repositoryDirectoryURL(name))
       }
     }
     var runner = f.service.git.runner
@@ -231,7 +231,7 @@ struct ResourceSnapshotTests {
   }
 
   private func submoduleRepository(_ fixture: Fixture) async throws -> URL {
-    let path = try fixture.service.store.load(fixture.root).repositoryURL("repo")
+    let path = try fixture.service.store.load(fixture.root).repositoryDirectoryURL("repo")
     _ = try await fixture.service.git.run(
       ["submodule", "add", fixture.remoteURL, "submodule"], at: path)
     _ = try await fixture.service.git.run(["commit", "-m", "add submodule"], at: path)
@@ -243,7 +243,7 @@ struct ResourceSnapshotTests {
     defer { fixture.remove() }
     let record = try fixture.service.store.load(fixture.root)
     let resource = Resource.repository("repo")
-    let path = record.repositoryURL("repo")
+    let path = record.repositoryDirectoryURL("repo")
     _ = try await fixture.service.git.run(
       ["symbolic-ref", "--delete", "refs/remotes/origin/HEAD"], at: path)
     try Data("keep changes".utf8).write(to: path.appending(path: "new.txt"))

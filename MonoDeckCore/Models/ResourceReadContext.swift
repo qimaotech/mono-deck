@@ -10,7 +10,7 @@ public struct ResourceReadContext: Sendable {
 
   init(
     resource: Resource, workspace: WorkspaceRecord, path: URL, gitDirectory: URL,
-    commonDirectory: URL, main: URL
+    commonDirectory: URL, mainWorktreeURL: URL
   ) throws {
     self.resource = resource
     self.workspace = workspace
@@ -19,7 +19,8 @@ public struct ResourceReadContext: Sendable {
     self.commonDirectory = commonDirectory
     var seen = Set<URL>()
     identities = try [
-      path, main, path.appending(path: ".git"), main.appending(path: ".git"), gitDirectory,
+      path, mainWorktreeURL, path.appending(path: ".git"), mainWorktreeURL.appending(path: ".git"),
+      gitDirectory,
       commonDirectory,
       gitDirectory.appending(path: "commondir"), commonDirectory.appending(path: "config"),
       gitDirectory.appending(path: "config.worktree"),

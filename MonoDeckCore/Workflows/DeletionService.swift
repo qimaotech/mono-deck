@@ -119,7 +119,7 @@ extension WorkspaceService {
       return group.repositoryIDs.map { .member(groupName: name, repositoryID: $0) } + [.group(name)]
     case .member(let group, let repo):
       guard record.groups[group]?.repositoryIDs.contains(repo) == true else {
-        throw MonoDeckError("target-not-configured", .memberIsNotConfigured)
+        throw MonoDeckError("target-not-configured", .worktreeIsNotRegisteredInGroup)
       }
       return [.member(groupName: group, repositoryID: repo)]
     case .members(let groupName, let repositoryIDs):
@@ -183,7 +183,7 @@ extension WorkspaceService {
         throw MonoDeckError("resource-unavailable", .missingRepositoryStillHasConfiguredMembers)
       }
       var risks: [UserMessage] =
-        exists ? [.mainRepositoryWillBeMovedTrash] : [.onlyRepositoryRecordEntryWillBeRemoved]
+        exists ? [.repositoryCloneWillBeMovedToTrash] : [.onlyRepositoryRecordEntryWillBeRemoved]
       var dirty: Bool?
       if exists && readRisks {
         let count = try await git.changeCount(at: path)
@@ -194,11 +194,11 @@ extension WorkspaceService {
         resource: resource, path: path.path, branch: nil, detached: false, gitRegistered: exists,
         exists: exists, risks: risks.map(\.englishDescription), riskMessages: risks, dirty: dirty)
     }
-    let main =
+    let mainWorktreeURL =
       try resource.repositoryID.map {
         try PathSafety.child("repositories/\($0)", of: record.rootURL, allowMissing: false)
       } ?? record.rootURL
-    let repository = try await inspectMainRepository(main)
+    let repository = try await inspectRepository(atMainWorktree: mainWorktreeURL)
     let registrations = repository.registrations
     let entry = worktreeRegistration(at: path, in: registrations)
     guard !exists || entry != nil else {
@@ -209,7 +209,8 @@ extension WorkspaceService {
       try checkWorktreeUnlocked(entry, at: path)
       if let branch = entry.branch {
         try await git.checkBranchNotInUse(
-          branch, registrations: registrations, at: repository.path, excluding: entry.path,
+          branch, registrations: registrations, at: repository.mainWorktreeURL,
+          excluding: entry.path,
           commonDirectory: repository.commonDirectory)
       }
     }
@@ -246,13 +247,13 @@ extension WorkspaceService {
       risks: risks.map(\.englishDescription), riskMessages: risks, dirty: dirty)
   }
   func checkUnmanagedWorktrees(_ repo: String, record: WorkspaceRecord) async throws {
-    let main = try PathSafety.child("repositories/\(repo)", of: record.rootURL)
-    guard PathSafety.exists(main) else { return }
+    let mainWorktreeURL = try PathSafety.child("repositories/\(repo)", of: record.rootURL)
+    guard PathSafety.exists(mainWorktreeURL) else { return }
     let resource = Resource.repository(repo)
     let repository = try await checkedRepository(for: resource, in: record)
-    try await checkWorktree(resource, at: main, repository: repository)
+    try await checkWorktree(resource, at: mainWorktreeURL, repository: repository)
     let allowed = Set(
-      [PathSafety.identity(main)]
+      [PathSafety.identity(mainWorktreeURL)]
         + record.groups.keys.filter { record.groups[$0]!.repositoryIDs.contains(repo) }.map {
           PathSafety.identity(record.memberURL($0, repo))
         })
@@ -298,7 +299,8 @@ extension WorkspaceService {
         try persist(candidate, into: &record)
         item.effects.append(.init("remove-record-entry", resource.path))
       } else {
-        let repository = resource.repositoryID.map { record.repositoryURL($0) } ?? record.rootURL
+        let repository =
+          resource.repositoryID.map { record.repositoryDirectoryURL($0) } ?? record.rootURL
         if target.gitRegistered || target.exists {
           try await removeWorktree(path, at: repository, cleanup: &cleanup, item: &item)
         }

@@ -77,7 +77,8 @@ struct CLIContractTests {
     if addingMembers { try await f.prepareEmptyGroup("feature") }
     let record = try f.service.store.load(f.root)
     _ = try await f.service.git.run(
-      ["symbolic-ref", "--delete", "refs/remotes/origin/HEAD"], at: record.repositoryURL(other.id))
+      ["symbolic-ref", "--delete", "refs/remotes/origin/HEAD"],
+      at: record.repositoryDirectoryURL(other.id))
     let command =
       addingMembers
       ? ["group", "member", "add", "feature", "repo", other.id]
@@ -123,7 +124,7 @@ struct CLIContractTests {
     try Data("invalid index".utf8).write(to: URL(fileURLWithPath: index))
     _ = try await f.service.git.run(
       ["config", "remote.origin.url", "https://mono-deck-test.invalid/renamed.git"],
-      at: record.repositoryURL("repo"))
+      at: record.repositoryDirectoryURL("repo"))
     let command = ["group", "delete", "feature", "--json", "--workspace", f.root.path]
 
     let pending = try await f.runCLI(command)
@@ -154,7 +155,9 @@ struct CLIContractTests {
     let record = try f.service.store.load(f.root)
     let before = try Data(contentsOf: f.service.store.recordURL(f.root))
     let ignore = try Data(contentsOf: f.root.appending(path: ".gitignore"))
-    let paths = [f.root, record.repositoryURL("repo"), record.repositoryURL(other.id)]
+    let paths = [
+      f.root, record.repositoryDirectoryURL("repo"), record.repositoryDirectoryURL(other.id),
+    ]
     var references: [URL: Data] = [:]
     for path in paths {
       references[path] = try await f.service.git.run(["show-ref"], at: path).stdout

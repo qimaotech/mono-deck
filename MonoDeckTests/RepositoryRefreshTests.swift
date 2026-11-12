@@ -14,13 +14,13 @@ import Testing
     for name in ["slow", "cached"] {
       let repository = Repository(url: "https://mono-deck-test.invalid/\(name).git")
       try FileManager.default.copyItem(
-        at: record.repositoryURL("repo"), to: record.repositoryURL(name))
+        at: record.repositoryDirectoryURL("repo"), to: record.repositoryDirectoryURL(name))
       _ = try await f.service.git.run(
-        ["config", "remote.origin.url", repository.url], at: record.repositoryURL(name))
+        ["config", "remote.origin.url", repository.url], at: record.repositoryDirectoryURL(name))
       record.repositories.append(repository)
     }
     try f.service.store.save(record)
-    let cachedFile = record.repositoryURL("cached").appending(path: "pending.txt")
+    let cachedFile = record.repositoryDirectoryURL("cached").appending(path: "pending.txt")
     try Data("before cancellation".utf8).write(to: cachedFile)
     let probe = f.directory.appending(path: "preload-drain-probe")
     try FileManager.default.createDirectory(at: probe, withIntermediateDirectories: false)
@@ -47,7 +47,7 @@ import Testing
     for arguments in [
       ["config", "core.fsmonitor", hook.path], ["config", "core.fsmonitorHookVersion", "2"],
     ] {
-      _ = try await f.service.git.run(arguments, at: record.repositoryURL("slow"))
+      _ = try await f.service.git.run(arguments, at: record.repositoryDirectoryURL("slow"))
     }
     var runner = f.service.git.runner
     runner.environment["MONO_DECK_PRELOAD_DRAIN_PROBE"] = probe.path
@@ -79,13 +79,15 @@ import Testing
       let pidText = try String(contentsOf: probe.appending(path: "pid"), encoding: .utf8)
         .trimmingCharacters(in: .whitespacesAndNewlines)
       let helperPID = try #require(Int32(pidText))
-      try Data("foreground".utf8).write(to: record.repositoryURL("repo").appending(path: "new.txt"))
+      try Data("foreground".utf8).write(
+        to: record.repositoryDirectoryURL("repo").appending(path: "new.txt"))
       model.workspace.refreshDetail()
       try await eventually { PathSafety.exists(probe.appending(path: "cancelling")) }
       try await eventually { model.workspace.detail.changes?.map(\.path) == ["new.txt"] }
       #expect(background?.isCancelled == true && model.workspace.detailPreloadTask == nil)
       #expect(model.workspace.state(for: .repository("slow"))?.dirty == false)
-      try Data("latest".utf8).write(to: record.repositoryURL("slow").appending(path: "late.txt"))
+      try Data("latest".utf8).write(
+        to: record.repositoryDirectoryURL("slow").appending(path: "late.txt"))
       try FileManager.default.removeItem(at: cachedFile)
       model.workspace.cancelDetailPreload()
       model.workspace.cancelDetailPreload()
@@ -152,7 +154,7 @@ import Testing
     defer { f.remove() }
     let record = try f.service.store.load(f.root)
     let resource = Resource.repository("repo")
-    let path = record.repositoryURL("repo")
+    let path = record.repositoryDirectoryURL("repo")
     let base = try #require(await f.service.git.oid("HEAD", at: path))
     _ = try await f.service.git.run(["commit", "--allow-empty", "-m", "first"], at: path)
     let first = try #require(await f.service.git.oid("HEAD", at: path))
@@ -232,7 +234,7 @@ import Testing
     defer { f.remove() }
     let record = try f.service.store.load(f.root)
     let resource = Resource.repository("repo")
-    let path = record.repositoryURL("repo")
+    let path = record.repositoryDirectoryURL("repo")
     let head = try #require(await f.service.git.oid("HEAD", at: path))
     let gate = HistoryReadGate(git: f.service.git)
     gate.blockedHead = head
@@ -291,9 +293,9 @@ import Testing
     var record = try f.service.store.load(f.root)
     let slow = Repository(url: "https://mono-deck-test.invalid/slow.git")
     try FileManager.default.copyItem(
-      at: record.repositoryURL("repo"), to: record.repositoryURL("slow"))
+      at: record.repositoryDirectoryURL("repo"), to: record.repositoryDirectoryURL("slow"))
     _ = try await f.service.git.run(
-      ["config", "remote.origin.url", slow.url], at: record.repositoryURL("slow"))
+      ["config", "remote.origin.url", slow.url], at: record.repositoryDirectoryURL("slow"))
     record.repositories.append(slow)
     try f.service.store.save(record)
     let probe = f.directory.appending(path: "activation-probe")
@@ -312,7 +314,7 @@ import Testing
     for arguments in [
       ["config", "core.fsmonitor", hook.path], ["config", "core.fsmonitorHookVersion", "2"],
     ] {
-      _ = try await f.service.git.run(arguments, at: record.repositoryURL("slow"))
+      _ = try await f.service.git.run(arguments, at: record.repositoryDirectoryURL("slow"))
     }
     var runner = f.service.git.runner
     runner.environment["MONO_DECK_ACTIVATION_PROBE"] = probe.path
@@ -335,15 +337,16 @@ import Testing
       model.workspace.setVisibleResources(Set(service.resources(record)), in: record.root)
       try await eventually { PathSafety.exists(probe.appending(path: "started")) }
       try Data("background".utf8).write(
-        to: record.repositoryURL("slow").appending(path: "slow.txt"))
-      try Data("latest".utf8).write(to: record.repositoryURL("repo").appending(path: "new.txt"))
+        to: record.repositoryDirectoryURL("slow").appending(path: "slow.txt"))
+      try Data("latest".utf8).write(
+        to: record.repositoryDirectoryURL("repo").appending(path: "new.txt"))
       now = now.advanced(by: .seconds(10))
       await model.activate()
       try await eventually { model.workspace.detail.changes?.map(\.path) == ["new.txt"] }
       #expect(!PathSafety.exists(probe.appending(path: "release")))
       let operation = try #require(model.operations.begin(.management))
       try Data("while busy".utf8).write(
-        to: record.repositoryURL("repo").appending(path: "busy.txt"))
+        to: record.repositoryDirectoryURL("repo").appending(path: "busy.txt"))
       await model.activate()
       #expect(model.workspace.details.detailTask == nil)
       model.operations.finish(operation)

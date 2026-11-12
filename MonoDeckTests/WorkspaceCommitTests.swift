@@ -450,7 +450,7 @@ struct WorkspaceCommitTests {
     let ignore = f.root.appending(path: ".gitignore")
     let originalIgnore = try Data(contentsOf: ignore)
     let originalStatus = try await git.run(["status", "--porcelain"], at: f.root).stdout
-    let repositories = before.repositoryURL("repo").deletingLastPathComponent()
+    let repositories = before.repositoryDirectoryURL("repo").deletingLastPathComponent()
     let originalEntries = try FileManager.default.contentsOfDirectory(atPath: repositories.path)
     let yaml = workspaceYAML(f)
 

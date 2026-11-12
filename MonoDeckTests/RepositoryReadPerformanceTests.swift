@@ -13,10 +13,10 @@ struct RepositoryReadPerformanceTests {
       await fixture.service.addRepository(.init(url: fixture.remoteURL), at: fixture.root).status
         == .success)
     var record = try fixture.service.store.load(fixture.root)
-    let original = record.repositoryURL("repo")
+    let original = record.repositoryDirectoryURL("repo")
     for index in 1...2 {
       let repository = Repository(url: "https://mono-deck-test.invalid/benchmark-\(index).git")
-      let destination = record.repositoryURL(repository.id)
+      let destination = record.repositoryDirectoryURL(repository.id)
       try FileManager.default.copyItem(at: original, to: destination)
       _ = try await fixture.service.git.run(
         ["remote", "set-url", "origin", repository.url], at: destination)
@@ -75,7 +75,7 @@ struct RepositoryReadPerformanceTests {
     try await fixture.prepareEmptyGroup("benchmark")
     let record = try fixture.service.store.load(fixture.root)
     let context = try await fixture.service.prepareResourceRead(.group("benchmark"), in: record)
-    let identity = try RepositoryCacheIdentity(context: context)
+    let identity = try ResourceDetailCacheIdentity(context: context)
     let events = PerformanceReadEvents()
     let directory = fixture.directory.appending(path: "benchmark-cache")
     let cache = RepositoryDiskCache(
@@ -86,7 +86,7 @@ struct RepositoryReadPerformanceTests {
       directory: directory, diagnostics: readerEvents.diagnostics,
       waitForWrite: { try await Task.sleep(for: .seconds(30)) })
     do {
-      let snapshot = RepositoryDetailSnapshot(
+      let snapshot = GitDetailSnapshot(
         summary: .init(head: "benchmark", headOID: oid(1), hasRemotes: false),
         changes: [], uniqueCommits: [], behindCommits: nil, observedAt: Date())
       let initial = ContinuousClock.now

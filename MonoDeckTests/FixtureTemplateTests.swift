@@ -64,8 +64,8 @@ struct FixtureTemplateTests {
       #expect(
         try await second.service.git.run(["status", "--porcelain"], at: second.root).text.isEmpty)
       if template == .singleRepository {
-        let repository = firstRecord.repositoryURL("repo")
-        let other = secondRecord.repositoryURL("repo")
+        let repository = firstRecord.repositoryDirectoryURL("repo")
+        let other = secondRecord.repositoryDirectoryURL("repo")
         try Data("first repository\n".utf8).write(to: repository.appending(path: "README"))
         #expect(
           try String(contentsOf: other.appending(path: "README"), encoding: .utf8) == "hello\n")

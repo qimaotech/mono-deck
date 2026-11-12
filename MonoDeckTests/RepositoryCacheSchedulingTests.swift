@@ -126,7 +126,7 @@ struct RepositoryCacheSchedulingTests {
     for group in ["second", "third"] {
       try await f.prepareEmptyGroup(group)
       identities.append(
-        try RepositoryCacheIdentity(
+        try ResourceDetailCacheIdentity(
           context: await f.service.prepareResourceRead(
             .group(group), in: f.service.store.load(f.root))))
     }
@@ -223,14 +223,14 @@ struct RepositoryCacheSchedulingTests {
     await second.flush()
   }
 
-  private func identity(_ fixture: Fixture) async throws -> RepositoryCacheIdentity {
+  private func identity(_ fixture: Fixture) async throws -> ResourceDetailCacheIdentity {
     try await fixture.prepareEmptyGroup("cached")
     let record = try fixture.service.store.load(fixture.root)
     let context = try await fixture.service.prepareResourceRead(.group("cached"), in: record)
-    return try RepositoryCacheIdentity(context: context)
+    return try ResourceDetailCacheIdentity(context: context)
   }
 
-  private func snapshot(_ head: String, observedAt: Date = Date()) -> RepositoryDetailSnapshot {
+  private func snapshot(_ head: String, observedAt: Date = Date()) -> GitDetailSnapshot {
     .init(
       summary: .init(head: head, headOID: String(repeating: "a", count: 40), hasRemotes: false),
       changes: [], uniqueCommits: [], behindCommits: nil, observedAt: observedAt)

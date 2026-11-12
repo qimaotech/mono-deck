@@ -70,8 +70,8 @@ struct YAMLPreparationCancellationTests {
     #expect(try await fixture.service.git.oid("HEAD", at: fixture.root) == originalHEAD)
     let record = try fixture.service.store.load(fixture.root)
     #expect(record.repositories.isEmpty && record.groups.isEmpty)
-    #expect(!PathSafety.exists(record.repositoryURL("repo")))
-    #expect(!PathSafety.exists(record.repositoryURL("other")))
+    #expect(!PathSafety.exists(record.repositoryDirectoryURL("repo")))
+    #expect(!PathSafety.exists(record.repositoryDirectoryURL("other")))
     #expect(!PathSafety.exists(record.groupURL("feature")))
     let remaining = try FileManager.default.contentsOfDirectory(
       at: fixture.root.appending(path: "repositories"), includingPropertiesForKeys: nil)

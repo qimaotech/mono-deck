@@ -162,7 +162,7 @@ import Testing
       #expect(model.operation == nil && model.workspace.record == record)
       #expect(try fixture.service.store.load(fixture.root) == record)
       #expect(
-        PathSafety.exists(record.repositoryURL("repo"))
+        PathSafety.exists(record.repositoryDirectoryURL("repo"))
           && PathSafety.exists(record.groupURL("feature"))
           && PathSafety.exists(record.memberURL("feature", "repo")))
     }

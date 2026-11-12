@@ -34,7 +34,7 @@ public indirect enum UserMessage: Sendable, Equatable {
   case deletionTargetsOrCheckedOutBranchesChangedNothing
   case repositoryIsNotConfigured
   case groupIsNotConfigured
-  case memberIsNotConfigured
+  case worktreeIsNotRegisteredInGroup
   case missingRepositoryStillHasConfiguredMembers
   case existingDirectoryHasNoMatchingGitRegistration(String)
   case worktreeIsLocked(String)
@@ -51,7 +51,7 @@ public indirect enum UserMessage: Sendable, Equatable {
   case linkedWorktreesForRepositoriesContainingSubmodulesAreNot(String)
   case worktreePathAlreadyExists(String)
   case worktreePathIsAlreadyRegistered
-  case noLocalStartingCommitUpdateMainRepositoryFirst(String)
+  case memberRepositoryStartingCommitUnavailable(String)
   case couldNotVerifyNewBranch(String)
   case newBranchChangedDuringCreationAndWasKept(String)
   case originHEADDoesNotIdentifyValidComparisonCommit
@@ -67,7 +67,7 @@ public indirect enum UserMessage: Sendable, Equatable {
   case workspaceImportRequiresBranch(String)
   case workspaceRecordIsMissing(String)
   case workspaceTracksRepositoriesOrWorktreesRemovePathsFrom
-  case repositorySummaryIsUnavailable
+  case gitDetailsAreUnavailable
   case resourceIsNotConfigured
   case worktreeRegistrationIsMissing(String)
   case worktreeBelongsAnotherRepository
@@ -192,7 +192,7 @@ public indirect enum UserMessage: Sendable, Equatable {
   case workspaceIsInUseByAnotherMonoDeckOperation
   case couldNotAcquireWorkspaceLock
   case workspaceLockTimedOut
-  case mainRepositoryWillBeMovedTrash
+  case repositoryCloneWillBeMovedToTrash
   case onlyRepositoryRecordEntryWillBeRemoved
   case workingTreeIsClean
   case changedPathsWillBeMovedTrash(Int)
@@ -266,16 +266,18 @@ public indirect enum UserMessage: Sendable, Equatable {
         "Deletion targets or checked-out branches changed. Nothing has been deleted. Review a new confirmation."
     case .repositoryIsNotConfigured: return "Repository is not configured."
     case .groupIsNotConfigured: return "Group is not configured."
-    case .memberIsNotConfigured: return "Member is not configured."
+    case .worktreeIsNotRegisteredInGroup: return "This worktree is not registered in this group."
     case .missingRepositoryStillHasConfiguredMembers:
-      return "Missing repository still has configured members."
+      return
+        "The repository directory is missing, and the workspace still lists worktrees for it in groups."
     case .existingDirectoryHasNoMatchingGitRegistration(let arg1):
       return "Existing directory has no matching Git worktree registration: \(arg1)"
     case .worktreeIsLocked(let arg1):
       return "Unlock this worktree with Git before deleting it: \(arg1)"
     case .registeredWorktreeHEADIsUnreadable(let arg1):
       return "Registered worktree HEAD is unreadable: \(arg1)"
-    case .repositoryMembersMustBeRemovedFirst: return "Repository members must be removed first."
+    case .repositoryMembersMustBeRemovedFirst:
+      return "Remove the repository's worktrees from its groups first."
     case .groupStillHasMembers: return "Group still has members."
     case .couldNotVerifyBranchDeletion(let arg1): return "Could not verify branch deletion: \(arg1)"
     case .chooseAtLeastOneRepository: return "Choose at least one repository."
@@ -293,8 +295,9 @@ public indirect enum UserMessage: Sendable, Equatable {
       return "Linked worktrees for repositories containing submodules are not supported: \(arg1)"
     case .worktreePathAlreadyExists(let arg1): return "Worktree path already exists: \(arg1)"
     case .worktreePathIsAlreadyRegistered: return "Worktree path is already registered with Git."
-    case .noLocalStartingCommitUpdateMainRepositoryFirst(let arg1):
-      return "No local starting commit. Update the main repository first: \(arg1)"
+    case .memberRepositoryStartingCommitUnavailable(let repositoryID):
+      return
+        "No local starting commit is available for repository \(repositoryID). Check its local origin/HEAD and the corresponding remote-tracking branch, then retry."
     case .couldNotVerifyNewBranch(let arg1): return "Could not verify the new branch: \(arg1)"
     case .newBranchChangedDuringCreationAndWasKept(let arg1):
       return "The new branch changed during creation and was kept: \(arg1)"
@@ -324,7 +327,7 @@ public indirect enum UserMessage: Sendable, Equatable {
     case .workspaceTracksRepositoriesOrWorktreesRemovePathsFrom:
       return
         "Workspace tracks repositories/ or worktrees/. Remove those paths from Git outside MonoDeck first."
-    case .repositorySummaryIsUnavailable: return "Repository summary is unavailable."
+    case .gitDetailsAreUnavailable: return "Git details are unavailable."
     case .resourceIsNotConfigured: return "Resource is not configured."
     case .worktreeRegistrationIsMissing(let arg1):
       return "Git worktree registration is missing: \(arg1)"
@@ -526,7 +529,8 @@ public indirect enum UserMessage: Sendable, Equatable {
     case .workspaceLockTimedOut:
       return
         "Timed out acquiring the workspace lock after 10 retries. Try again after the other MonoDeck operation finishes."
-    case .mainRepositoryWillBeMovedTrash: return "Main repository will be moved to Trash."
+    case .repositoryCloneWillBeMovedToTrash:
+      return "The local repository clone will be moved to Trash."
     case .onlyRepositoryRecordEntryWillBeRemoved:
       return "Only the repository entry in the workspace record will be removed."
     case .workingTreeIsClean: return "Working tree is clean."

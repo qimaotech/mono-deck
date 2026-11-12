@@ -10,7 +10,7 @@ import Testing
     defer { fixture.remove() }
     let record = try fixture.service.store.load(fixture.root)
     let repository = Resource.repository("repo")
-    let path = record.repositoryURL("repo")
+    let path = record.repositoryDirectoryURL("repo")
     for state in ["clean", "unstaged", "staged", "untracked"] {
       if state == "untracked" {
         _ = try await fixture.service.git.run(["reset", "--hard", "HEAD"], at: path)
@@ -50,7 +50,7 @@ import Testing
     model.workspace.record = record
     model.workspace.details.cache(.init(resource: repository, available: true, dirty: false))
     try Data("invalid index".utf8).write(
-      to: record.repositoryURL("repo").appending(path: ".git/index"))
+      to: record.repositoryDirectoryURL("repo").appending(path: ".git/index"))
     model.management.prepareDelete(.repository("repo"))
     await model.management.deletePreviewTask?.value
     #expect(model.management.formError != nil)
@@ -62,7 +62,7 @@ import Testing
     #expect(model.operation == nil && !model.busy)
     #expect(try fixture.service.store.load(fixture.root) == record)
     #expect(
-      PathSafety.exists(record.repositoryURL("repo"))
+      PathSafety.exists(record.repositoryDirectoryURL("repo"))
         && PathSafety.exists(record.memberURL("feature", "repo")))
   }
 
@@ -94,7 +94,7 @@ import Testing
       for arguments in [
         ["config", "core.fsmonitor", monitor.path], ["config", "core.fsmonitorHookVersion", "2"],
       ] {
-        _ = try await fixture.service.git.run(arguments, at: record.repositoryURL("repo"))
+        _ = try await fixture.service.git.run(arguments, at: record.repositoryDirectoryURL("repo"))
       }
       let defaults = try #require(UserDefaults(suiteName: fixture.directory.lastPathComponent))
       defer { defaults.removePersistentDomain(forName: fixture.directory.lastPathComponent) }
@@ -346,7 +346,7 @@ import Testing
       for arguments in [
         ["config", "core.fsmonitor", monitor.path], ["config", "core.fsmonitorHookVersion", "2"],
       ] {
-        _ = try await fixture.service.git.run(arguments, at: record.repositoryURL("repo"))
+        _ = try await fixture.service.git.run(arguments, at: record.repositoryDirectoryURL("repo"))
       }
       var runner = fixture.service.git.runner
       runner.environment["MONO_DECK_DELETE_PREVIEW_PROBE"] = probe.path
@@ -471,7 +471,7 @@ import Testing
     let contents = Data("keep uncommitted notes\n".utf8)
     try contents.write(to: notes)
     _ = try await fixture.service.git.run(
-      ["worktree", "lock", member.path], at: record.repositoryURL("repo"))
+      ["worktree", "lock", member.path], at: record.repositoryDirectoryURL("repo"))
     let defaults = try #require(UserDefaults(suiteName: fixture.directory.lastPathComponent))
     defer { defaults.removePersistentDomain(forName: fixture.directory.lastPathComponent) }
     let model = AppModel(defaults: defaults, service: fixture.service)
@@ -518,7 +518,7 @@ import Testing
     #expect(try fixture.service.store.load(fixture.root).groups["feature"]?.repositoryIDs == [])
     #expect(
       PathSafety.exists(record.groupURL("feature"))
-        && PathSafety.exists(record.repositoryURL("repo")))
+        && PathSafety.exists(record.repositoryDirectoryURL("repo")))
     #expect(!PathSafety.exists(record.memberURL("feature", "repo")))
   }
 
@@ -564,7 +564,8 @@ import Testing
       PathSafety.exists(record.groupURL("feature"))
         && PathSafety.exists(record.memberURL("feature", "repo")))
     #expect(
-      try await fixture.service.git.oid("refs/heads/feature", at: record.repositoryURL("repo"))
+      try await fixture.service.git.oid(
+        "refs/heads/feature", at: record.repositoryDirectoryURL("repo"))
         != nil)
     #expect(try await fixture.service.git.oid("refs/heads/feature", at: fixture.root) != nil)
   }

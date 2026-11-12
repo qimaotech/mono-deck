@@ -98,14 +98,14 @@ struct RepositoryPreparationTests {
         try #require(
           await fixture.service.addRepository(.init(url: other), at: fixture.root).status
             == .success)
-        userFile = record.repositoryURL("other").appending(path: "notes")
+        userFile = record.repositoryDirectoryURL("other").appending(path: "notes")
       } else if foreign == "same-repository" {
         try #require(
           await fixture.service.addRepository(.init(url: fixture.remoteURL), at: fixture.root)
             .status == .success)
-        userFile = record.repositoryURL("repo").appending(path: "notes")
+        userFile = record.repositoryDirectoryURL("repo").appending(path: "notes")
       } else if foreign == "target-conflict" {
-        userFile = record.repositoryURL("repo")
+        userFile = record.repositoryDirectoryURL("repo")
       } else if foreign == "directory" {
         try FileManager.default.createDirectory(at: external, withIntermediateDirectories: false)
         userFile = external.appending(path: "notes")
@@ -164,7 +164,7 @@ struct RepositoryPreparationTests {
       #expect(try Data(contentsOf: userFile) == data)
       #expect(PathSafety.exists(moved))
       #expect(try fixture.service.store.load(fixture.root) == record)
-      #expect(!PathSafety.exists(record.repositoryURL("repo")))
+      #expect(!PathSafety.exists(record.repositoryDirectoryURL("repo")))
     } catch {
       operation.cancel()
       try? gate.releaseAll()

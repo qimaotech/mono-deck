@@ -1,7 +1,7 @@
 import MonoDeckCore
 import SwiftUI
 
-struct RepositoryUpdateResultsView: View {
+struct UpdateResultsView: View {
   let text: InterfaceText
   let items: [ItemResult]
   let workspace: String?
@@ -20,7 +20,7 @@ struct RepositoryUpdateResultsView: View {
         .help(fullPath(for: resource))
     } status: { row in
       if let item = row.item {
-        RepositoryUpdateResultButton(
+        UpdateResultButton(
           text: text, item: item, fullPath: fullPath(for: row.resource),
           isWorktreeUpdate: isWorktreeUpdate)
       }
@@ -56,7 +56,7 @@ struct RepositoryUpdateResultsView: View {
   }
 }
 
-private struct RepositoryUpdateResultButton: View {
+private struct UpdateResultButton: View {
   var text: InterfaceText
   var item: ItemResult
   var fullPath: String
@@ -64,7 +64,7 @@ private struct RepositoryUpdateResultButton: View {
   @State private var showingDetails = false
 
   var body: some View {
-    let status = RepositoryUpdateResultStatus(item)
+    let status = UpdateResultStatus(item)
     return Button {
       showingDetails.toggle()
     } label: {
@@ -82,7 +82,7 @@ private struct RepositoryUpdateResultButton: View {
     .accessibilityValue(text.string(showingDetails ? .uiExpanded : .uiCollapsed))
     .accessibilityHint(text.string(.uiViewDetails))
     .detailsPopover(isPresented: $showingDetails) {
-      RepositoryUpdateResultPopover(
+      UpdateResultPopover(
         text: text, item: item, fullPath: fullPath,
         updateID: updateID, branchDetails: isWorktreeUpdate ? branchDetails : nil)
     }
@@ -105,7 +105,7 @@ private struct RepositoryUpdateResultButton: View {
   }
 }
 
-struct RepositoryUpdateResultPopover: View {
+struct UpdateResultPopover: View {
   var text: InterfaceText
   var item: ItemResult
   var fullPath: String
@@ -172,7 +172,7 @@ struct RepositoryUpdateResultPopover: View {
   }
 }
 
-enum RepositoryUpdateResultStatus: Equatable {
+enum UpdateResultStatus: Equatable {
   case updated, skipped, failed, cancelled
 
   init(_ item: ItemResult) {

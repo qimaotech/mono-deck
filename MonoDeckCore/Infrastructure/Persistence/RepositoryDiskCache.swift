@@ -62,7 +62,7 @@ public actor RepositoryDiskCache: RepositoryDetailCaching {
     self.waitForWrite = waitForWrite ?? { try await Task.sleep(for: .seconds(1)) }
   }
 
-  public func loadDetail(for identity: RepositoryCacheIdentity) async -> RepositoryDetailSnapshot? {
+  public func loadDetail(for identity: ResourceDetailCacheIdentity) async -> GitDetailSnapshot? {
     guard !Task.isCancelled, identity.isCurrent(), let key = digest(identity),
       !invalidatedDetails.contains(key)
     else { return nil }
@@ -89,7 +89,7 @@ public actor RepositoryDiskCache: RepositoryDetailCaching {
     return latest
   }
 
-  public func saveDetail(_ value: RepositoryDetailSnapshot, for identity: RepositoryCacheIdentity)
+  public func saveDetail(_ value: GitDetailSnapshot, for identity: ResourceDetailCacheIdentity)
     async
   {
     guard !Task.isCancelled, maximumBytes > 0, maximumEntryBytes > 0,
@@ -155,7 +155,7 @@ public actor RepositoryDiskCache: RepositoryDetailCaching {
     }
   }
 
-  public func invalidateDetail(for identity: RepositoryCacheIdentity) async {
+  public func invalidateDetail(for identity: ResourceDetailCacheIdentity) async {
     guard !Task.isCancelled, let key = digest(identity) else { return }
     forgetDetail(key)
     invalidatedDetails.insert(key)
@@ -264,11 +264,11 @@ public actor RepositoryDiskCache: RepositoryDetailCaching {
   }
 
   private func loadDiskDetail(
-    for identity: RepositoryCacheIdentity, key: String, recordingAccess: Bool = true
-  ) -> (value: RepositoryDetailSnapshot, stamp: FileStamp)? {
+    for identity: ResourceDetailCacheIdentity, key: String, recordingAccess: Bool = true
+  ) -> (value: GitDetailSnapshot, stamp: FileStamp)? {
     let file = entryURL(key: key, kind: "detail")
     guard let before = fileStamp(file) else { return nil }
-    let value: RepositoryDetailSnapshot? = load(
+    let value: GitDetailSnapshot? = load(
       key: key, kind: "detail", repository: identity.repository, recordingAccess: recordingAccess)
     guard let value, value.isComplete, before == fileStamp(file) else { return nil }
     return (value, before)
@@ -293,8 +293,8 @@ public actor RepositoryDiskCache: RepositoryDetailCaching {
   }
 
   private func makeDetail(
-    identity: RepositoryCacheIdentity, latest: RepositoryDetailSnapshot,
-    persisted: RepositoryDetailSnapshot? = nil, stamp: FileStamp? = nil
+    identity: ResourceDetailCacheIdentity, latest: GitDetailSnapshot,
+    persisted: GitDetailSnapshot? = nil, stamp: FileStamp? = nil
   ) -> Detail {
     Detail(
       identity: identity, latest: latest, persisted: persisted, latestCost: memoryCost(latest),
@@ -335,8 +335,8 @@ public actor RepositoryDiskCache: RepositoryDetailCaching {
     pendingDetails.remove(key)
   }
 
-  private func memoryCost(_ value: RepositoryDetailSnapshot) -> Int {
-    var cost = MemoryLayout<RepositoryDetailSnapshot>.stride
+  private func memoryCost(_ value: GitDetailSnapshot) -> Int {
+    var cost = MemoryLayout<GitDetailSnapshot>.stride
     cost = Self.addingCost(cost, stringCost(value.summary.head))
     cost = Self.addingCost(cost, stringCost(value.summary.headOID))
     cost = Self.addingCost(cost, stringCost(value.summary.base))
@@ -658,9 +658,9 @@ public actor RepositoryDiskCache: RepositoryDetailCaching {
   }
 
   private struct Detail {
-    let identity: RepositoryCacheIdentity
-    var latest: RepositoryDetailSnapshot
-    var persisted: RepositoryDetailSnapshot?
+    let identity: ResourceDetailCacheIdentity
+    var latest: GitDetailSnapshot
+    var persisted: GitDetailSnapshot?
     var latestCost: Int
     var persistedCost: Int
     var persistedStamp: FileStamp?

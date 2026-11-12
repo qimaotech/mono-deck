@@ -11,9 +11,9 @@ struct WorktreeCreationTests {
     var record = try f.service.store.load(f.root)
     let other = Repository(url: "https://mono-deck-test.invalid/other.git")
     try FileManager.default.copyItem(
-      at: record.repositoryURL("repo"), to: record.repositoryURL(other.id))
+      at: record.repositoryDirectoryURL("repo"), to: record.repositoryDirectoryURL(other.id))
     _ = try await f.service.git.run(
-      ["config", "remote.origin.url", other.url], at: record.repositoryURL(other.id))
+      ["config", "remote.origin.url", other.url], at: record.repositoryDirectoryURL(other.id))
     record.repositories.append(other)
     try f.service.store.save(record)
     _ = try await f.service.git.ensureIgnore([other.id], at: f.root)
@@ -53,9 +53,9 @@ struct WorktreeCreationTests {
     for id in ["blocked", "untouched"] {
       let repository = Repository(url: "https://mono-deck-test.invalid/\(id).git")
       try FileManager.default.copyItem(
-        at: record.repositoryURL("repo"), to: record.repositoryURL(id))
+        at: record.repositoryDirectoryURL("repo"), to: record.repositoryDirectoryURL(id))
       _ = try await f.service.git.run(
-        ["config", "remote.origin.url", repository.url], at: record.repositoryURL(id))
+        ["config", "remote.origin.url", repository.url], at: record.repositoryDirectoryURL(id))
       record.repositories.append(repository)
     }
     try f.service.store.save(record)
@@ -63,7 +63,7 @@ struct WorktreeCreationTests {
     try await f.commitWorkspace()
     if addingMembers { try await f.prepareEmptyGroup("feature", branchName: "feature/task") }
     record = try f.service.store.load(f.root)
-    let repository = record.repositoryURL("blocked")
+    let repository = record.repositoryDirectoryURL("blocked")
     let expectedCode: String
     switch failure {
     case "base":
@@ -135,7 +135,8 @@ struct WorktreeCreationTests {
       !PathSafety.exists(saved.memberURL("feature", "blocked"))
         && !PathSafety.exists(saved.memberURL("feature", "untouched")))
     #expect(
-      try await f.service.git.oid("refs/heads/feature/task", at: record.repositoryURL("untouched"))
+      try await f.service.git.oid(
+        "refs/heads/feature/task", at: record.repositoryDirectoryURL("untouched"))
         == nil)
     let lease = try f.service.store.tryLock(f.root)
     lease.unlock()
@@ -148,7 +149,7 @@ struct WorktreeCreationTests {
     let f = try await Fixture(template: .singleRepository)
     defer { f.remove() }
     let record = try f.service.store.load(f.root)
-    let repository = record.repositoryURL("repo")
+    let repository = record.repositoryDirectoryURL("repo")
     let base = try #require(try await f.service.git.oid("HEAD", at: repository))
     var expected = base
     if source != "default" {
@@ -194,7 +195,7 @@ struct WorktreeCreationTests {
     let f = try await Fixture(template: .singleRepository)
     defer { f.remove() }
     let record = try f.service.store.load(f.root)
-    let repository = kind == "root" ? f.root : record.repositoryURL("repo")
+    let repository = kind == "root" ? f.root : record.repositoryDirectoryURL("repo")
     let probe = try installReferenceHook(
       at: repository, fixture: f, phase: phase, branch: "feature/task")
     let task = Task {
@@ -244,7 +245,7 @@ struct WorktreeCreationTests {
     let f = try await Fixture(template: .singleRepository)
     defer { f.remove() }
     let record = try f.service.store.load(f.root)
-    let repository = kind == "root" ? f.root : record.repositoryURL("repo")
+    let repository = kind == "root" ? f.root : record.repositoryDirectoryURL("repo")
     let oid = try #require(try await f.service.git.oid("HEAD", at: repository))
     _ = try await f.service.git.run(["update-ref", "refs/heads/feature", oid], at: repository)
     let started = f.directory.appending(path: "checkout-started")
@@ -317,7 +318,7 @@ struct WorktreeCreationTests {
     let f = try await Fixture(template: .singleRepository)
     defer { f.remove() }
     let record = try f.service.store.load(f.root)
-    let repository = kind == "root" ? f.root : record.repositoryURL("repo")
+    let repository = kind == "root" ? f.root : record.repositoryDirectoryURL("repo")
     let original = try #require(try await f.service.git.oid("HEAD", at: repository))
     let base =
       history == "diverged"
@@ -354,7 +355,7 @@ struct WorktreeCreationTests {
     let f = try await Fixture(template: .singleRepository)
     defer { f.remove() }
     let record = try f.service.store.load(f.root)
-    let repository = record.repositoryURL("repo")
+    let repository = record.repositoryDirectoryURL("repo")
     let oid = try #require(try await f.service.git.oid("HEAD", at: repository))
     _ = try await f.service.git.run(["update-ref", "refs/heads/feature", oid], at: repository)
     _ = try await f.service.git.run(

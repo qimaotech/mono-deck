@@ -124,7 +124,7 @@ extension WorkspaceService {
         context = try await prepareResourceRead(resource, in: record, repository: repository)
       }
       guard context.isValid(in: record) else {
-        throw MonoDeckError("resource-unavailable", .repositorySummaryIsUnavailable)
+        throw MonoDeckError("resource-unavailable", .gitDetailsAreUnavailable)
       }
       let dirty = try await git.hasVisibleChanges(at: context.path, visibility: .application)
       try checkCancellation()

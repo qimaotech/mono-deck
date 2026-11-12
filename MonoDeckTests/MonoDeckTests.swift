@@ -218,7 +218,8 @@ struct MonoDeckCoreTests {
     #expect(record.groups["feature-test"]?.repositoryIDs == ["repo"])
     #expect(try await fixture.service.git.registrations(at: fixture.root).count == 2)
     #expect(
-      try await fixture.service.git.registrations(at: record.repositoryURL("repo")).count == 2)
+      try await fixture.service.git.registrations(at: record.repositoryDirectoryURL("repo")).count
+        == 2)
     let preview = try await fixture.service.previewDelete(
       .member(groupName: "feature-test", repositoryID: "repo"), at: fixture.root)
     #expect(preview[0].branch == "feature-test")
@@ -309,7 +310,7 @@ struct MonoDeckCoreTests {
     let fixture = try await Fixture(template: .singleRepository)
     defer { fixture.remove() }
     let record = try fixture.service.store.load(fixture.root)
-    let path = record.repositoryURL("repo")
+    let path = record.repositoryDirectoryURL("repo")
     let git = fixture.service.git
     let common = path.appending(path: ".git").path
     let original = try #require(await git.oid("HEAD", at: path))
@@ -467,7 +468,7 @@ struct Fixture: Sendable {
         [
           "worktree", "add", "--no-track", "-b", record.groups[name]!.branchName,
           record.memberURL(name, repository).path, "origin/main",
-        ], at: record.repositoryURL(repository))
+        ], at: record.repositoryDirectoryURL(repository))
     }
     record.groups[name]?.repositoryIDs = repositoryIDs
     try service.store.save(record)

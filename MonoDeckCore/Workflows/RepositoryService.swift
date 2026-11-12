@@ -465,7 +465,7 @@ extension WorkspaceService {
     } catch {
       fail(&item, error)
       if !item.effects.isEmpty {
-        let path = record.repositoryURL(repository.id)
+        let path = record.repositoryDirectoryURL(repository.id)
         let head = try? await git.run(
           ["rev-parse", "--verify", "HEAD"], at: path, allowFailure: true, cancellable: false)
         let status = try? await git.run(

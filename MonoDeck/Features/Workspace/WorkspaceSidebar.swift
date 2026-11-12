@@ -151,6 +151,8 @@ struct WorkspaceSidebar: View {
       let repositories = add == .add
       let updateTitle = preferences.text.string(
         repositories ? .uiUpdateRepositories : .uiUpdateWorktrees)
+      let updateHelp = preferences.text.string(
+        repositories ? .uiUpdateRepositoriesHelp : .uiUpdateWorktreesHelp)
       Button {
         if repositories { management.updateRepositories() } else { management.updateWorktrees() }
       } label: {
@@ -163,7 +165,9 @@ struct WorkspaceSidebar: View {
           shape: Circle(), foreground: DesignStyle.secondary, hoverForeground: DesignStyle.secondary
         )
       )
-      .help(updateTitle).accessibilityLabel(updateTitle)
+      .help("\(updateTitle)\n\(updateHelp)")
+      .accessibilityLabel(updateTitle)
+      .accessibilityHint(updateHelp)
       Button {
         management.requestForm(add == .add ? .addRepository : .createGroup)
       } label: {

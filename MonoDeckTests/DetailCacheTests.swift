@@ -13,7 +13,7 @@ import Testing
     defer { model.defaults.removePersistentDomain(forName: fixture.directory.lastPathComponent) }
     let record = try #require(model.workspace.record)
     let resource = Resource.repository("repo")
-    let path = record.repositoryURL("repo")
+    let path = record.repositoryDirectoryURL("repo")
     let submodule = path.appending(path: "submodule")
     _ = try await fixture.service.git.run(
       ["submodule", "add", fixture.remoteURL, "submodule"], at: path)
@@ -139,7 +139,8 @@ import Testing
       """.utf8
     ).write(to: monitor)
     try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: monitor.path)
-    let repository = selected.repositoryID.map { record.repositoryURL($0) } ?? record.rootURL
+    let repository =
+      selected.repositoryID.map { record.repositoryDirectoryURL($0) } ?? record.rootURL
     for arguments in [
       ["config", "core.fsmonitor", monitor.path], ["config", "core.fsmonitorHookVersion", "2"],
     ] {
@@ -217,7 +218,8 @@ import Testing
       """.utf8
     ).write(to: monitor)
     try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: monitor.path)
-    let blockedRepository = blocksCreatedGroup ? record.rootURL : record.repositoryURL("repo")
+    let blockedRepository =
+      blocksCreatedGroup ? record.rootURL : record.repositoryDirectoryURL("repo")
     for arguments in [
       ["config", "core.fsmonitor", monitor.path], ["config", "core.fsmonitorHookVersion", "2"],
     ] {
@@ -268,7 +270,7 @@ import Testing
     let model = try await makeModel(fixture, now: { now })
     defer { model.defaults.removePersistentDomain(forName: fixture.directory.lastPathComponent) }
     let repository = Resource.repository("repo")
-    let path = try #require(model.workspace.record?.repositoryURL("repo"))
+    let path = try #require(model.workspace.record?.repositoryDirectoryURL("repo"))
 
     model.workspace.selection = repository
     #expect(model.workspace.detailLoading && model.workspace.detail.summary == nil)
@@ -412,7 +414,7 @@ import Testing
     }
     _ = try await fixture.service.git.run(
       ["push", fixture.remoteURL, "HEAD:refs/heads/main"], at: source)
-    let path = try #require(model.workspace.record?.repositoryURL("repo"))
+    let path = try #require(model.workspace.record?.repositoryDirectoryURL("repo"))
     _ = try await fixture.service.git.run(["fetch", "origin"], at: path)
     model.workspace.selection = .repository("repo")
     try await waitForDetail(model)
@@ -469,7 +471,8 @@ import Testing
       service: WorkspaceService(store: fixture.service.store, git: Git(runner: runner)))
     model.workspace.record = try fixture.service.store.load(fixture.root)
     let record = try #require(model.workspace.record)
-    try Data("main".utf8).write(to: record.repositoryURL("repo").appending(path: "main.txt"))
+    try Data("main".utf8).write(
+      to: record.repositoryDirectoryURL("repo").appending(path: "main.txt"))
     try Data("group".utf8).write(to: record.groupURL("feature").appending(path: "group.txt"))
     try Data("member".utf8).write(
       to: record.memberURL("feature", "repo").appending(path: "member.txt"))
@@ -575,7 +578,7 @@ import Testing
     defer { fixture.remove() }
     let model = try await makeModel(fixture)
     defer { model.defaults.removePersistentDomain(forName: fixture.directory.lastPathComponent) }
-    let path = try #require(model.workspace.record?.repositoryURL("repo"))
+    let path = try #require(model.workspace.record?.repositoryDirectoryURL("repo"))
     _ = try await fixture.service.git.run(["config", "log.date", "invalid-date-format"], at: path)
 
     model.workspace.refreshDetail()
@@ -606,7 +609,7 @@ import Testing
     defer { fixture.remove() }
     let model = try await makeModel(fixture)
     defer { model.defaults.removePersistentDomain(forName: fixture.directory.lastPathComponent) }
-    let path = try #require(model.workspace.record?.repositoryURL("repo"))
+    let path = try #require(model.workspace.record?.repositoryDirectoryURL("repo"))
     model.workspace.selection = .repository("repo")
     do {
       try await waitForDetail(model)

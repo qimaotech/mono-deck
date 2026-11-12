@@ -31,7 +31,7 @@
             record.rootURL.appending(path: $0.path).path.hasPrefix(mock.directory.path + "/")
           })
         for path in [
-          record.rootURL, record.repositoryURL("order-service"),
+          record.rootURL, record.repositoryDirectoryURL("order-service"),
           record.memberURL("feature-store-pickup", "order-service"),
         ] {
           #expect(
@@ -62,7 +62,7 @@
       let removed = await service.deleteConfirmed(
         .repository("catalog-service"), at: original.rootURL)
       #expect(removed.status == .success)
-      #expect(!PathSafety.exists(original.repositoryURL("catalog-service")))
+      #expect(!PathSafety.exists(original.repositoryDirectoryURL("catalog-service")))
       let trashed = try FileManager.default.contentsOfDirectory(
         at: mock.directory.appending(path: "trash"), includingPropertiesForKeys: nil)
       #expect(trashed.count == 1 && PathSafety.exists(trashed[0].appending(path: ".git")))
@@ -70,17 +70,17 @@
       let added = await service.addRepository(
         .init(url: "https://example.invalid/catalog-service.git"), at: original.rootURL)
       #expect(added.status == .success)
-      #expect(PathSafety.exists(original.repositoryURL("catalog-service")))
+      #expect(PathSafety.exists(original.repositoryDirectoryURL("catalog-service")))
       #expect(
         try await service.git.run(
           ["config", "--local", "--get", "include.path"],
-          at: original.repositoryURL("catalog-service")
+          at: original.repositoryDirectoryURL("catalog-service")
         ).text == mock.directory.appending(path: "gitconfig").path)
       let bytes = try Data(contentsOf: service.store.recordURL(original.rootURL))
       let rejected = await service.addRepository(
         .init(url: "https://unmapped.invalid/extra.git"), at: original.rootURL)
       #expect(rejected.status == .failed && rejected.items.allSatisfy { $0.effects.isEmpty })
-      #expect(!PathSafety.exists(original.repositoryURL("extra")))
+      #expect(!PathSafety.exists(original.repositoryDirectoryURL("extra")))
       #expect(try Data(contentsOf: service.store.recordURL(original.rootURL)) == bytes)
       #expect(service.git.runner.environment["GIT_ALLOW_PROTOCOL"] == "file")
     }
@@ -183,7 +183,7 @@
           .init(url: "https://example.invalid/outside.git"), at: record.rootURL)
         #expect(added.status == .failed && added.items.first?.reasonCode == "unsafe-path")
         #expect(model.workspace.record == record)
-        #expect(!PathSafety.exists(record.repositoryURL("outside")))
+        #expect(!PathSafety.exists(record.repositoryDirectoryURL("outside")))
         model.defaults.set(other.root.path, forKey: "workspace")
         await model.workspace.maintainWorkspace()
         #expect(model.workspace.record == nil && model.workspace.blocked != nil)
@@ -276,11 +276,11 @@
     private var released = false
     private(set) var flushStarted = false
     private(set) var flushed = false
-    func loadDetail(for identity: RepositoryCacheIdentity) -> RepositoryDetailSnapshot? { nil }
-    func saveDetail(_ value: RepositoryDetailSnapshot, for identity: RepositoryCacheIdentity) {}
+    func loadDetail(for identity: ResourceDetailCacheIdentity) -> GitDetailSnapshot? { nil }
+    func saveDetail(_ value: GitDetailSnapshot, for identity: ResourceDetailCacheIdentity) {}
     func loadHistory(for key: RepositoryHistoryCacheKey) -> RepositoryHistorySnapshot? { nil }
     func saveHistory(_ value: RepositoryHistorySnapshot, for key: RepositoryHistoryCacheKey) {}
-    func invalidateDetail(for identity: RepositoryCacheIdentity) {}
+    func invalidateDetail(for identity: ResourceDetailCacheIdentity) {}
     func invalidateHistory(for repository: RepositoryCacheRepositoryIdentity) {}
     func flush() async {
       flushStarted = true

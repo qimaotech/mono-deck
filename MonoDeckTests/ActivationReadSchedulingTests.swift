@@ -47,7 +47,7 @@ import Testing
     defer { f.remove() }
     let record = try f.service.store.load(f.root)
     let resource = Resource.repository("repo")
-    let path = record.repositoryURL("repo")
+    let path = record.repositoryDirectoryURL("repo")
     let defaults = try #require(UserDefaults(suiteName: f.directory.lastPathComponent))
     defer { defaults.removePersistentDomain(forName: f.directory.lastPathComponent) }
     let counts = ActivationReadCounts()
@@ -149,7 +149,7 @@ import Testing
       #expect(details.detailTask == nil && counts.count("detail.selection.hit") == 1)
 
       try Data("tracked change".utf8).write(
-        to: record.repositoryURL("repo").appending(path: "README"))
+        to: record.repositoryDirectoryURL("repo").appending(path: "README"))
       #expect(!details.hasActiveReads && details.detail.changes?.isEmpty == true)
       details.refresh(resource, in: record, userInitiated: true)
       await details.detailTask?.value

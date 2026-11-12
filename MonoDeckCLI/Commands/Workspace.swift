@@ -7,7 +7,7 @@ struct Workspace: AsyncParsableCommand {
     abstract: "Inspect the local workspace structure.", subcommands: [Tree.self])
   struct Tree: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-      abstract: "Show registered worktree directories as a read-only tree.",
+      abstract: "Show the workspace directory tree.",
       discussion:
         "Does not modify workspace records or fetch repositories. Missing directories, symbolic links, and incompatible .git layouts are omitted. This structural view does not validate Git health or repository ownership. JSON returns the tree in data.tree of the operation result; root paths are absolute and child paths are relative to their parent."
     )

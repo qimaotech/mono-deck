@@ -9,8 +9,8 @@ struct WorkspaceTreeTests {
     defer { fixture.remove() }
     let record = try await prepare(fixture)
     try await fixture.prepareEmptyGroup("a-empty")
-    let unregistered = record.repositoryURL("unregistered")
-    try FileManager.default.copyItem(at: record.repositoryURL("repo"), to: unregistered)
+    let unregistered = record.repositoryDirectoryURL("unregistered")
+    try FileManager.default.copyItem(at: record.repositoryDirectoryURL("repo"), to: unregistered)
     let original = try Data(contentsOf: fixture.service.store.recordURL(fixture.root))
     let lease = try fixture.service.store.tryLock(fixture.root)
     defer { lease.unlock() }
@@ -87,7 +87,7 @@ struct WorkspaceTreeTests {
     let record = try await prepare(fixture)
     let resource: URL
     switch target {
-    case "repository": resource = record.repositoryURL("repo")
+    case "repository": resource = record.repositoryDirectoryURL("repo")
     case "group": resource = record.groupURL("feature")
     default: resource = record.memberURL("feature", "repo")
     }
@@ -133,7 +133,7 @@ struct WorkspaceTreeTests {
     let fixture = try await Fixture(template: .singleRepository)
     defer { fixture.remove() }
     let record = try await prepare(fixture)
-    let repository = record.repositoryURL("repo")
+    let repository = record.repositoryDirectoryURL("repo")
     let member = record.memberURL("feature", "repo")
     switch kind {
     case "wrong-origin":
@@ -212,7 +212,7 @@ struct WorkspaceTreeTests {
     let fixture = try await Fixture(template: .singleRepository)
     defer { fixture.remove() }
     let record = try fixture.service.store.load(fixture.root)
-    let path = record.repositoryURL("repo")
+    let path = record.repositoryDirectoryURL("repo")
     _ = try await fixture.service.git.run(
       ["symbolic-ref", "--delete", "refs/remotes/origin/HEAD"], at: path)
     _ = try await fixture.service.git.run(

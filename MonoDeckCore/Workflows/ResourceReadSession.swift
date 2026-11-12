@@ -74,7 +74,7 @@ public actor ResourceReadSession {
         }
       }
       guard rebound.isValid(in: record), configuration.isCurrent() else {
-        throw MonoDeckError("resource-unavailable", .repositorySummaryIsUnavailable)
+        throw MonoDeckError("resource-unavailable", .gitDetailsAreUnavailable)
       }
       contexts[key] = ContextEntry(
         context: rebound, configuration: configuration, familyVersion: prepared.version)
@@ -133,10 +133,11 @@ public actor ResourceReadSession {
       if let configuration {
         guard configuration.matches(origin: inspection.origin) else {
           throw MonoDeckError(
-            "origin-mismatch", .repositoryOriginDoesNotMatchWorkspaceRecord(inspection.path.path))
+            "origin-mismatch",
+            .repositoryOriginDoesNotMatchWorkspaceRecord(inspection.mainWorktreeURL.path))
         }
         if let completed = repositories[family], completed.isCurrent(),
-          completed.inspection.path == inspection.path,
+          completed.inspection.mainWorktreeURL == inspection.mainWorktreeURL,
           completed.inspection.commonDirectory == inspection.commonDirectory,
           completed.inspection.origin == inspection.origin,
           completed.configuration.output == configuration.output
@@ -165,7 +166,7 @@ public actor ResourceReadSession {
           "origin-mismatch", .repositoryOriginDoesNotMatchWorkspaceRecord(context.path.path))
       }
       guard context.isValid(in: record), configuration.isCurrent() else {
-        throw MonoDeckError("resource-unavailable", .repositorySummaryIsUnavailable)
+        throw MonoDeckError("resource-unavailable", .gitDetailsAreUnavailable)
       }
       contexts[key] = ContextEntry(
         context: context, configuration: configuration, familyVersion: entry.version)
@@ -180,13 +181,13 @@ public actor ResourceReadSession {
     for inspection: RepositoryInspection,
     reads: inout [ConfigurationScope: ConfigurationRead]
   ) async throws -> ConfigurationSnapshot? {
-    let directory = inspection.path.appending(path: ".git")
+    let directory = inspection.mainWorktreeURL.appending(path: ".git")
     let commonDirectory = URL(fileURLWithPath: inspection.commonDirectory)
     // Use Git's spelling across volume aliases, keeping a separate HEAD directory when commondir exists.
     let gitDirectory =
       PathSafety.exists(directory.appending(path: "commondir")) ? directory : commonDirectory
     return try await readConfiguration(
-      at: inspection.path, gitDirectory: gitDirectory,
+      at: inspection.mainWorktreeURL, gitDirectory: gitDirectory,
       commonDirectory: commonDirectory, reads: &reads)
   }
 
@@ -283,7 +284,7 @@ public actor ResourceReadSession {
       self.configuration = configuration
       version = UUID()
       paths = try [
-        inspection.path, inspection.path.appending(path: ".git"),
+        inspection.mainWorktreeURL, inspection.mainWorktreeURL.appending(path: ".git"),
         URL(fileURLWithPath: inspection.commonDirectory),
       ].map(ReadPathIdentity.init)
       registrations = try RegistrationFingerprint(

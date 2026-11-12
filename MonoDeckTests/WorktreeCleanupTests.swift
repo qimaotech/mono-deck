@@ -42,9 +42,11 @@ struct WorktreeCleanupTests {
     #expect(result.status == .success, "\(result.items)")
     #expect(!PathSafety.exists(member) && !PathSafety.exists(launched))
     #expect(try service.store.load(fixture.root).groups["feature"]?.repositoryIDs == [])
-    #expect(try await service.git.registrations(at: record.repositoryURL("repo")).count == 1)
     #expect(
-      try await service.git.oid("refs/heads/feature", at: record.repositoryURL("repo")) == nil)
+      try await service.git.registrations(at: record.repositoryDirectoryURL("repo")).count == 1)
+    #expect(
+      try await service.git.oid("refs/heads/feature", at: record.repositoryDirectoryURL("repo"))
+        == nil)
   }
 
   @Test(arguments: ["delete", "cancelled", "edit"])
@@ -56,7 +58,7 @@ struct WorktreeCleanupTests {
     let record = try fixture.service.store.load(fixture.root)
     let outside = fixture.directory.appending(path: "outside")
     _ = try await fixture.service.git.run(
-      ["worktree", "add", "-b", "outside", outside.path], at: record.repositoryURL("repo"))
+      ["worktree", "add", "-b", "outside", outside.path], at: record.repositoryDirectoryURL("repo"))
     try FileManager.default.removeItem(at: outside)
     let probe = try WorktreeCleanupProbe(fixture)
     defer { probe.unlock() }
@@ -94,11 +96,13 @@ struct WorktreeCleanupTests {
         })
       #expect(!PathSafety.exists(record.memberURL("feature", "repo")))
       #expect(PathSafety.exists(record.groupURL("feature")) == keepsGroup)
-      let registrations = try await service.git.registrations(at: record.repositoryURL("repo"))
+      let registrations = try await service.git.registrations(
+        at: record.repositoryDirectoryURL("repo"))
       #expect(registrations.contains { $0.branch == "outside" }, "\(registrations)")
       #expect(!registrations.contains { $0.branch == "feature" }, "\(registrations)")
       #expect(
-        try await service.git.oid("refs/heads/feature", at: record.repositoryURL("repo")) == nil)
+        try await service.git.oid("refs/heads/feature", at: record.repositoryDirectoryURL("repo"))
+          == nil)
       let saved = try service.store.load(fixture.root)
       #expect((saved.groups["feature"] != nil) == keepsGroup)
       if keepsGroup { #expect(saved.groups["feature"]?.repositoryIDs == []) }

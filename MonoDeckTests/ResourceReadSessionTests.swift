@@ -86,7 +86,7 @@ struct ResourceReadSessionTests {
     let included = directory.appending(path: "new.gitconfig")
     try Data("[include]\n    path = new.gitconfig\n".utf8).write(to: parent)
     _ = try await f.service.git.run(
-      ["config", "--add", "include.path", parent.path], at: record.repositoryURL("repo"))
+      ["config", "--add", "include.path", parent.path], at: record.repositoryDirectoryURL("repo"))
     let session = ResourceReadSession(service: f.service)
     _ = try await session.prepare(.repository("repo"), in: record)
 
@@ -105,12 +105,12 @@ struct ResourceReadSessionTests {
     let session = ResourceReadSession(service: f.service)
     let resource = Resource.repository("repo")
     let first = try await session.prepare(resource, in: record)
-    let identity = try RepositoryCacheIdentity(context: first)
+    let identity = try ResourceDetailCacheIdentity(context: first)
     let previous = f.directory.appending(path: "previous-repository-git")
     try FileManager.default.moveItem(at: first.gitDirectory, to: previous)
     try FileManager.default.copyItem(at: previous, to: first.gitDirectory)
     let replaced = try await session.prepare(resource, in: record)
-    #expect(try RepositoryCacheIdentity(context: replaced) != identity)
+    #expect(try ResourceDetailCacheIdentity(context: replaced) != identity)
   }
 
   @Test func lightweightStatusUsesTheSameVisibilityWithoutExpandingUntrackedDirectories()
@@ -119,7 +119,7 @@ struct ResourceReadSessionTests {
     let f = try await Fixture(template: .singleRepository)
     defer { f.remove() }
     let record = try f.service.store.load(f.root)
-    let path = record.repositoryURL("repo")
+    let path = record.repositoryDirectoryURL("repo")
     _ = try await f.service.git.run(["mv", "README", "renamed\nfile"], at: path)
     try FileManager.default.createDirectory(
       at: path.appending(path: "new-directory"), withIntermediateDirectories: false)

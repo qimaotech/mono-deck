@@ -71,7 +71,8 @@ extension WorkspaceService {
       let context = try await prepareResourceRead(resource, in: record, repository: repository)
       let state = try await worktreeUpdateState(context)
       item.data?["branch"] = state.branch.map { String($0.dropFirst("refs/heads/".count)) }
-      let base = try await worktreeUpdateBase(repository.path, isGroupRoot: resource.kind == .group)
+      let base = try await worktreeUpdateBase(
+        repository.mainWorktreeURL, isGroupRoot: resource.kind == .group)
       item.data?["base"] = base?.name
       let head = try state.checkedHead()
       guard let base else {
@@ -86,7 +87,8 @@ extension WorkspaceService {
       }
       if let group = resource.groupName, resource.kind == .group {
         try await git.checkRootCommit(
-          base.oid, members: record.groups[group]?.repositoryIDs ?? [], at: repository.path)
+          base.oid, repositoryIDs: record.groups[group]?.repositoryIDs ?? [],
+          at: repository.mainWorktreeURL)
       }
       try await fastForwardWorktree(context, from: state, to: base, in: repository, item: &item)
     } catch let skip as WorktreeUpdateSkip {
@@ -119,13 +121,14 @@ extension WorkspaceService {
       do {
         try await git.checkBranchNotInUse(
           String(branch.dropFirst("refs/heads/".count)), registrations: current.registrations,
-          at: current.path, excluding: registrationPath, commonDirectory: current.commonDirectory)
+          at: current.mainWorktreeURL, excluding: registrationPath,
+          commonDirectory: current.commonDirectory)
       } catch let error as MonoDeckError where error.code == "branch-in-use" {
         throw WorktreeUpdateSkip(error.code, error.userMessage)
       }
     }
     let currentBase = try await worktreeUpdateBase(
-      current.path, isGroupRoot: context.resource.kind == .group)
+      current.mainWorktreeURL, isGroupRoot: context.resource.kind == .group)
     let latest = try await worktreeUpdateState(context)
     _ = try latest.checkedHead()
     guard latest.branch == state.branch, latest.head == state.head, currentBase == base,

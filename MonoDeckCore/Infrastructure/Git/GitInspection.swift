@@ -484,8 +484,8 @@ extension Git {
     else { throw MonoDeckError("ignore-unavailable", .gitignoreMustBeReadableWritableRegularFile) }
     return try Data(contentsOf: file)
   }
-  func checkRootCommit(_ oid: String, members: [String], at root: URL) async throws {
-    let paths = ["repositories", "worktrees"] + members
+  func checkRootCommit(_ oid: String, repositoryIDs: [String], at root: URL) async throws {
+    let paths = ["repositories", "worktrees"] + repositoryIDs
     let tracked = try await run(
       ["ls-tree", "-r", "--name-only", "-z", oid, "--"] + paths, at: root)
     guard tracked.stdout.isEmpty else {

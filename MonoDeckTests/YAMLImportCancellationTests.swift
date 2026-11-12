@@ -33,7 +33,7 @@ struct YAMLImportCancellationTests {
     #expect(record.repositories.map(\.id) == ["repo", "other"])
     for repo in record.repositories {
       try await f.service.git.checkRepository(
-        record.repositoryURL(repo.id), origin: repo.url, main: true)
+        record.repositoryDirectoryURL(repo.id), origin: repo.url, main: true)
     }
     let committedIgnore = try await f.service.git.run(["show", "HEAD:.gitignore"], at: f.root).text
     #expect(committedIgnore.contains("/repo/") && committedIgnore.contains("/other/"))
@@ -66,8 +66,8 @@ struct YAMLImportCancellationTests {
     )
     let record = try f.service.store.load(f.root)
     #expect(record.repositories.map(\.id) == (beforeFirst ? [] : ["repo"]))
-    #expect(PathSafety.exists(record.repositoryURL("repo")) == !beforeFirst)
-    #expect(!PathSafety.exists(record.repositoryURL("other")))
+    #expect(PathSafety.exists(record.repositoryDirectoryURL("repo")) == !beforeFirst)
+    #expect(!PathSafety.exists(record.repositoryDirectoryURL("other")))
     let committedIgnore = try await f.service.git.run(["show", "HEAD:.gitignore"], at: f.root).text
     #expect(committedIgnore.contains("/repo/") == !beforeFirst)
     #expect(!committedIgnore.contains("/other/"))

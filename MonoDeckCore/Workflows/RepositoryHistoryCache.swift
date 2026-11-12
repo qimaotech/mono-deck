@@ -8,7 +8,7 @@ extension WorkspaceService {
   {
     try store.checkBoundary(context.workspace.rootURL)
     guard context.isValid(in: context.workspace) else {
-      throw MonoDeckError("resource-unavailable", .repositorySummaryIsUnavailable)
+      throw MonoDeckError("resource-unavailable", .gitDetailsAreUnavailable)
     }
     try Task.checkCancellation()
     let reader = inspectionService()

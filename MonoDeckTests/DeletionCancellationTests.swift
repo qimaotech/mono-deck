@@ -14,7 +14,7 @@ import Testing
     let record = try await prepare(fixture)
     let current: Resource =
       kind == "last" ? .group("feature") : .member(groupName: "feature", repositoryID: "repo")
-    let repository = current.repositoryID.map { record.repositoryURL($0) } ?? fixture.root
+    let repository = current.repositoryID.map { record.repositoryDirectoryURL($0) } ?? fixture.root
     let probe = try installDeletionHook(at: repository, fixture: fixture)
     let defaults = try #require(UserDefaults(suiteName: fixture.directory.lastPathComponent))
     defer { defaults.removePersistentDomain(forName: fixture.directory.lastPathComponent) }
@@ -59,11 +59,12 @@ import Testing
     #expect(!PathSafety.exists(record.memberURL("feature", "repo")))
     let saved = try fixture.service.store.load(fixture.root)
     #expect(model.workspace.record == saved && saved.repositories == record.repositories)
-    #expect(PathSafety.exists(record.repositoryURL("repo")))
+    #expect(PathSafety.exists(record.repositoryDirectoryURL("repo")))
     #expect(PathSafety.exists(record.groupURL("feature")) == (kind != "last"))
     #expect(PathSafety.exists(record.memberURL("feature", "other")) == (kind != "last"))
     #expect(
-      (try await fixture.service.git.oid("refs/heads/feature", at: record.repositoryURL("other"))
+      (try await fixture.service.git.oid(
+        "refs/heads/feature", at: record.repositoryDirectoryURL("other"))
         != nil) == (kind != "last"))
     if ["member", "last"].contains(kind) {
       #expect(model.presentation.result == nil)
@@ -122,7 +123,8 @@ import Testing
       let trash = try #require(result.items.last?.trashPath)
       #expect(PathSafety.exists(URL(fileURLWithPath: trash)))
     } else {
-      let repository = resource.repositoryID.map { record.repositoryURL($0) } ?? fixture.root
+      let repository =
+        resource.repositoryID.map { record.repositoryDirectoryURL($0) } ?? fixture.root
       #expect(try await fixture.service.git.oid("refs/heads/feature", at: repository) == nil)
       #expect(
         result.items.last?.effects.map(\.action) == [

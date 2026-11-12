@@ -45,7 +45,7 @@ import Testing
       pending.urls == [fixture.remoteURL, unselected] && pending.selectedURLs == Set(pending.urls))
     #expect(model.operation == nil && !model.busy && model.management.sheet == .importRepositories)
     #expect(try fixture.service.store.load(fixture.root) == record)
-    #expect(!PathSafety.exists(record.repositoryURL("repo")))
+    #expect(!PathSafety.exists(record.repositoryDirectoryURL("repo")))
     if action == "confirm" {
       model.management.repositoryImport?.selectedURLs = []
       model.management.confirmRepositoryImport()
@@ -67,7 +67,7 @@ import Testing
       model.management.confirmRepositoryImport()
       #expect(model.operation == nil && !model.busy)
       #expect(try fixture.service.store.load(fixture.root) == record)
-      #expect(!PathSafety.exists(record.repositoryURL("repo")))
+      #expect(!PathSafety.exists(record.repositoryDirectoryURL("repo")))
     }
     #expect(model.management.repositoryImport == nil)
   }
@@ -162,7 +162,7 @@ import Testing
     let saved = try store.load(fixture.root)
     #expect(saved.repositories.map(\.id) == ["repo"] && saved.groups.isEmpty)
     #expect(
-      !PathSafety.exists(saved.repositoryURL("other"))
+      !PathSafety.exists(saved.repositoryDirectoryURL("other"))
         && !PathSafety.exists(saved.groupURL("feature")))
     let committed = try await fixture.service.git.run(
       ["show", "HEAD:.gitignore"], at: fixture.root
@@ -296,7 +296,7 @@ import Testing
       !model.busy && model.management.formError == nil && model.presentation.result == nil
         && model.management.sheet == nil)
     #expect(try fixture.service.store.load(fixture.root) == record)
-    #expect(!PathSafety.exists(record.repositoryURL("repo")))
+    #expect(!PathSafety.exists(record.repositoryDirectoryURL("repo")))
   }
 
   private func prepare(_ fixture: Fixture) async throws -> String {

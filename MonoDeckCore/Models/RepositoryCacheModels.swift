@@ -1,7 +1,7 @@
 import Darwin
 import Foundation
 
-public struct RepositoryCacheIdentity: Codable, Hashable, Sendable {
+public struct ResourceDetailCacheIdentity: Codable, Hashable, Sendable {
   public let repository: RepositoryCacheRepositoryIdentity
   public let resource: Resource
   public let groupCreatedAt: String?
@@ -81,7 +81,7 @@ public struct RepositoryCachePathIdentity: Codable, Hashable, Sendable {
   func isCurrent() -> Bool { (try? Self(URL(fileURLWithPath: path))) == self }
 }
 
-public struct RepositoryDetailSnapshot: Codable, Sendable {
+public struct GitDetailSnapshot: Codable, Sendable {
   public let summary: GitSummary
   public let changes: [FileChange]
   public let uniqueCommits: [GitCommit]?
@@ -192,11 +192,11 @@ public struct RepositoryHistoryCacheState: Equatable, Sendable {
 }
 
 public protocol RepositoryDetailCaching: Sendable {
-  func loadDetail(for identity: RepositoryCacheIdentity) async -> RepositoryDetailSnapshot?
-  func saveDetail(_ value: RepositoryDetailSnapshot, for identity: RepositoryCacheIdentity) async
+  func loadDetail(for identity: ResourceDetailCacheIdentity) async -> GitDetailSnapshot?
+  func saveDetail(_ value: GitDetailSnapshot, for identity: ResourceDetailCacheIdentity) async
   func loadHistory(for key: RepositoryHistoryCacheKey) async -> RepositoryHistorySnapshot?
   func saveHistory(_ value: RepositoryHistorySnapshot, for key: RepositoryHistoryCacheKey) async
-  func invalidateDetail(for identity: RepositoryCacheIdentity) async
+  func invalidateDetail(for identity: ResourceDetailCacheIdentity) async
   func invalidateHistory(for repository: RepositoryCacheRepositoryIdentity) async
   func flush() async
 }

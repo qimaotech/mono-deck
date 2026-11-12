@@ -26,7 +26,7 @@ struct Group: AsyncParsableCommand {
 
   struct Create: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-      abstract: "Create a new group from selected repositories.",
+      abstract: "Create a worktree group from selected repositories.",
       discussion:
         "The group must not already exist. Uses local Git refs without fetching. Use group member add to extend an existing group."
     )
@@ -44,7 +44,7 @@ struct Group: AsyncParsableCommand {
     @Option(
       name: .customLong("repo"), parsing: .singleValue,
       help: ArgumentHelp(
-        "A member repository ID. Repeat for multiple repositories.", valueName: "repository-id"))
+        "A repository ID. Repeat for multiple repositories.", valueName: "repository-id"))
     var repositoryIDs: [String] = []
     mutating func validate() throws {
       guard !repositoryIDs.isEmpty else {
@@ -63,20 +63,24 @@ struct Group: AsyncParsableCommand {
 
   struct Edit: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-      abstract: "Replace the complete member repository set of a group.",
-      discussion:
-        "Omitted members are deleted with their current local branches. The group root and name are kept. Use --clear-members to retain an empty group."
+      abstract: "Choose which repositories have worktrees in an existing group.",
+      discussion: """
+        Pass --repo for every repository that should have a worktree in the group. MonoDeck deletes existing worktrees for omitted repositories and their current local branches.
+
+        Use --clear-members to remove all worktrees registered in the group. Both forms keep the group root and name.
+        """
     )
     @OptionGroup var options: Options
     @OptionGroup var mutation: MutationOptions
-    @Argument(help: ArgumentHelp("The existing group name.", valueName: "group-name"))
+    @Argument(
+      help: ArgumentHelp("The name of the worktree group to edit.", valueName: "group-name"))
     var groupName: String
     @Option(
       name: .customLong("repo"), parsing: .singleValue,
-      help: ArgumentHelp(
-        "A repository ID in the complete desired member set.", valueName: "repository-id"))
+      help: ArgumentHelp("A repository ID to include in the group.", valueName: "repository-id"))
     var repositoryIDs: [String] = []
-    @Flag(help: "Delete every member while keeping the group root.") var clearMembers = false
+    @Flag(help: "Delete all worktrees registered in the group and their current local branches.")
+    var clearMembers = false
     mutating func validate() throws {
       guard clearMembers != !repositoryIDs.isEmpty else {
         throw ValidationError("Specify either one or more --repo options or --clear-members.")
@@ -102,7 +106,7 @@ struct Group: AsyncParsableCommand {
 
   struct Delete: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-      abstract: "Delete a group root, all members, and their current local branches.")
+      abstract: "Delete a worktree group, its worktrees, and their current local branches.")
     @OptionGroup var options: Options
     @OptionGroup var mutation: MutationOptions
     @Argument(help: ArgumentHelp("The group to delete.", valueName: "group-name")) var groupName:
@@ -129,10 +133,11 @@ struct Group: AsyncParsableCommand {
 
   struct Member: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-      abstract: "Add or delete individual group members.", subcommands: [Add.self, Delete.self])
+      abstract: "Add or delete individual worktrees in a group.",
+      subcommands: [Add.self, Delete.self])
     struct Add: AsyncParsableCommand {
       static let configuration = CommandConfiguration(
-        abstract: "Add missing member worktrees to an existing group.")
+        abstract: "Add missing worktrees to an existing group.")
       @OptionGroup var options: Options
       @OptionGroup var mutation: MutationOptions
       @Argument(help: ArgumentHelp("The existing group name.", valueName: "group-name"))
@@ -155,8 +160,7 @@ struct Group: AsyncParsableCommand {
     }
     struct Delete: AsyncParsableCommand {
       static let configuration = CommandConfiguration(
-        abstract:
-          "Delete member worktrees and their current local branches, keeping the group root.")
+        abstract: "Delete worktrees and their current local branches, keeping the group root.")
       @OptionGroup var options: Options
       @OptionGroup var mutation: MutationOptions
       @Argument(help: ArgumentHelp("The existing group name.", valueName: "group-name"))

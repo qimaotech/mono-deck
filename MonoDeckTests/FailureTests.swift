@@ -142,14 +142,14 @@ struct FailureTests {
     #expect(PathSafety.exists(URL(fileURLWithPath: effect.target)) == cleanupFails)
     let record = try f.service.store.load(f.root)
     #expect(record.repositories.map(\.id) == (kind == "single" ? [] : ["repo"]))
-    #expect(!PathSafety.exists(record.repositoryURL(targetName)))
+    #expect(!PathSafety.exists(record.repositoryDirectoryURL(targetName)))
     #expect(
       try String(contentsOf: f.root.appending(path: ".gitignore"), encoding: .utf8).contains(
         "/\(targetName)/") == false)
     if kind == "batch" {
       #expect(result.items.first?.status == .success)
       #expect(result.items.last?.reasonCode == "not-processed")
-      #expect(!PathSafety.exists(record.repositoryURL("later")))
+      #expect(!PathSafety.exists(record.repositoryDirectoryURL("later")))
     }
     let lease = try f.service.store.tryLock(f.root)
     lease.unlock()
@@ -712,7 +712,7 @@ struct FailureTests {
     let member = record.memberURL("feature", "repo")
     let resource = Resource.member(groupName: "feature", repositoryID: "repo")
     _ = try await f.service.git.run(
-      ["config", "extensions.worktreeConfig", "true"], at: record.repositoryURL("repo"))
+      ["config", "extensions.worktreeConfig", "true"], at: record.repositoryDirectoryURL("repo"))
     _ = try await f.service.git.run(["symbolic-ref", "HEAD", "refs/heads/missing"], at: member)
 
     for overrideOrigin in [false, true] {
@@ -743,7 +743,7 @@ struct FailureTests {
     defer { f.remove() }
     try await f.prepareGroup("feature", repositoryIDs: ["repo"])
     let record = try f.service.store.load(f.root)
-    let main = record.repositoryURL("repo")
+    let main = record.repositoryDirectoryURL("repo")
     let member = record.memberURL("feature", "repo")
     let branch = main.appending(path: ".git/refs/heads/feature")
     _ = try await f.service.git.run(["config", "extensions.worktreeConfig", "true"], at: main)
@@ -785,7 +785,7 @@ struct FailureTests {
     defer { f.remove() }
     try await f.prepareGroup("feature", repositoryIDs: ["repo"])
     let record = try f.service.store.load(f.root)
-    let main = record.repositoryURL("repo")
+    let main = record.repositoryDirectoryURL("repo")
     let hook = main.appending(path: ".git/hooks/reference-transaction")
     try Data(
       """
@@ -830,7 +830,7 @@ struct FailureTests {
       ["rev-parse", "--absolute-git-dir"], at: record.memberURL("feature", "repo")
     ).text
     let head = URL(fileURLWithPath: directory).appending(path: "HEAD")
-    let branch = record.repositoryURL("repo").appending(path: ".git/refs/heads/feature")
+    let branch = record.repositoryDirectoryURL("repo").appending(path: ".git/refs/heads/feature")
     try #require(PathSafety.exists(branch))
 
     let result = await f.service.delete(.group("feature"), at: f.root, confirmCurrentTargets: true)

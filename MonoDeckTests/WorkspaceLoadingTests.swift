@@ -311,7 +311,7 @@ import Testing
     for arguments in [
       ["config", "core.fsmonitor", monitor.path], ["config", "core.fsmonitorHookVersion", "2"],
     ] {
-      _ = try await fixture.service.git.run(arguments, at: record.repositoryURL("repo"))
+      _ = try await fixture.service.git.run(arguments, at: record.repositoryDirectoryURL("repo"))
     }
     var runner = fixture.service.git.runner
     runner.environment["MONO_DECK_STARTUP_SWITCH_PROBE"] = probe.path
@@ -557,7 +557,7 @@ import Testing
       maintenance = Task { await model.workspace.maintainWorkspace() }
       try await gate!.waitUntilStarted()
       try Data("main change".utf8).write(
-        to: record.repositoryURL("repo").appending(path: "main.txt"))
+        to: record.repositoryDirectoryURL("repo").appending(path: "main.txt"))
       try Data("member change".utf8).write(
         to: record.memberURL("feature", "repo").appending(path: "member.txt"))
       try gate!.resume()
@@ -598,8 +598,10 @@ import Testing
     await initial.workspace.stopReads()
     let record = try #require(initial.workspace.record)
     _ = try await fixture.service.git.run(
-      ["commit", "--allow-empty", "-m", "launch history"], at: record.repositoryURL("repo"))
-    try Data("on launch".utf8).write(to: record.repositoryURL("repo").appending(path: "new.txt"))
+      ["commit", "--allow-empty", "-m", "launch history"], at: record.repositoryDirectoryURL("repo")
+    )
+    try Data("on launch".utf8).write(
+      to: record.repositoryDirectoryURL("repo").appending(path: "new.txt"))
     let model = AppModel(
       defaults: initial.defaults, service: fixture.service,
       installer: try fixture.makeCLIInstaller())
@@ -987,9 +989,9 @@ import Testing
     var record = try fixture.service.store.load(fixture.root)
     let other = Repository(url: "https://mono-deck-test.invalid/other.git")
     try FileManager.default.copyItem(
-      at: record.repositoryURL("repo"), to: record.repositoryURL(other.id))
+      at: record.repositoryDirectoryURL("repo"), to: record.repositoryDirectoryURL(other.id))
     _ = try await fixture.service.git.run(
-      ["config", "remote.origin.url", other.url], at: record.repositoryURL(other.id))
+      ["config", "remote.origin.url", other.url], at: record.repositoryDirectoryURL(other.id))
     record.repositories.append(other)
     try fixture.service.store.save(record)
     let defaults = try #require(UserDefaults(suiteName: fixture.directory.lastPathComponent))
@@ -1012,7 +1014,7 @@ import Testing
     for arguments in [
       ["config", "core.fsmonitor", monitor.path], ["config", "core.fsmonitorHookVersion", "2"],
     ] {
-      _ = try await fixture.service.git.run(arguments, at: record.repositoryURL(other.id))
+      _ = try await fixture.service.git.run(arguments, at: record.repositoryDirectoryURL(other.id))
     }
     var runner = fixture.service.git.runner
     runner.environment["MONO_DECK_STARTUP_PROBE"] = probe.path
@@ -1040,7 +1042,8 @@ import Testing
       #expect(completed && !model.busy && !model.openingWorkspace)
       #expect(model.workspace.record == record && model.workspace.blocked == nil)
       #expect(model.tools.map(\.id) == ["codex"])
-      try Data("changed".utf8).write(to: record.repositoryURL("repo").appending(path: "new.txt"))
+      try Data("changed".utf8).write(
+        to: record.repositoryDirectoryURL("repo").appending(path: "new.txt"))
       model.workspace.selection = .repository("repo")
       let detailDeadline = ContinuousClock.now.advanced(by: .seconds(10))
       while model.workspace.detailLoading, ContinuousClock.now < detailDeadline {
@@ -1519,9 +1522,10 @@ import Testing
       if resource.kind != .repository {
         #expect(
           try await fixture.service.git.oid(
-            "refs/heads/feature", at: expected.repositoryURL("repo")) != nil)
+            "refs/heads/feature", at: expected.repositoryDirectoryURL("repo")) != nil)
         #expect(
-          try await fixture.service.git.registrations(at: expected.repositoryURL("repo")).count == 3
+          try await fixture.service.git.registrations(at: expected.repositoryDirectoryURL("repo"))
+            .count == 3
         )
       }
     }
@@ -1578,7 +1582,7 @@ import Testing
     var record = try fixture.service.store.load(fixture.root)
     record.repositories = [.init(url: fixture.remoteURL)]
     try fixture.service.store.save(record)
-    let path = record.repositoryURL("repo")
+    let path = record.repositoryDirectoryURL("repo")
     switch kind {
     case "git":
       try FileManager.default.createDirectory(at: path, withIntermediateDirectories: false)

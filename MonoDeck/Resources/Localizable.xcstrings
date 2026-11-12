@@ -265,13 +265,13 @@
               "one": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "Delete %lld member worktree?"
+                  "value": "Delete %lld worktree?"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "Delete %lld member worktrees?"
+                  "value": "Delete %lld worktrees?"
                 }
               }
             }
@@ -280,7 +280,7 @@
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "删除 %lld 个成员工作树？"
+            "value": "删除 %lld 个工作树？"
           }
         }
       }
@@ -291,13 +291,13 @@
         "en-US": {
           "stringUnit": {
             "state": "translated",
-            "value": "Deleting member worktree…"
+            "value": "Deleting worktree…"
           }
         },
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "正在删除成员工作树…"
+            "value": "正在删除工作树…"
           }
         }
       }
@@ -308,13 +308,13 @@
         "en-US": {
           "stringUnit": {
             "state": "translated",
-            "value": "Deleting member worktrees…"
+            "value": "Deleting worktrees…"
           }
         },
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "正在删除成员工作树…"
+            "value": "正在删除工作树…"
           }
         }
       }
@@ -1551,6 +1551,23 @@
         }
       }
     },
+    "message.gitDetailsAreUnavailable": {
+      "extractionState": "manual",
+      "localizations": {
+        "en-US": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Git details are unavailable."
+          }
+        },
+        "zh-Hans-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Git 详情不可用。"
+          }
+        }
+      }
+    },
     "message.expectedRegularMockDataFile": {
       "extractionState": "manual",
       "localizations": {
@@ -2209,7 +2226,7 @@
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "不支持为包含子模块的仓库创建关联工作树：%1$@"
+            "value": "不支持为包含子模块的仓库创建链接工作树：%1$@"
           }
         }
       }
@@ -2248,36 +2265,19 @@
         }
       }
     },
-    "message.mainRepositoryWillBeMovedTrash": {
+    "message.memberRepositoryStartingCommitUnavailable": {
       "extractionState": "manual",
       "localizations": {
         "en-US": {
           "stringUnit": {
             "state": "translated",
-            "value": "Main repository will be moved to Trash."
+            "value": "No local starting commit is available for repository %1$@. Check its local origin/HEAD and the corresponding remote-tracking branch, then retry."
           }
         },
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "主仓库将移入废纸篓。"
-          }
-        }
-      }
-    },
-    "message.memberIsNotConfigured": {
-      "extractionState": "manual",
-      "localizations": {
-        "en-US": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Member is not configured."
-          }
-        },
-        "zh-Hans-CN": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "成员尚未配置。"
+            "value": "仓库 %1$@ 缺少可用的本地起始提交。请检查该仓库本地的 origin/HEAD 和对应的远端跟踪分支，再重试。"
           }
         }
       }
@@ -2305,13 +2305,13 @@
         "en-US": {
           "stringUnit": {
             "state": "translated",
-            "value": "Missing repository still has configured members."
+            "value": "The repository directory is missing, and the workspace still lists worktrees for it in groups."
           }
         },
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "缺失的仓库仍有已配置的成员。"
+            "value": "仓库目录缺失，工作区仍登记有该仓库在各分组中的工作树。"
           }
         }
       }
@@ -2465,23 +2465,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "此 YAML 文件中没有完整且受支持的 Git 仓库地址。"
-          }
-        }
-      }
-    },
-    "message.noLocalStartingCommitUpdateMainRepositoryFirst": {
-      "extractionState": "manual",
-      "localizations": {
-        "en-US": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No local starting commit. Update the main repository first: %1$@"
-          }
-        },
-        "zh-Hans-CN": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "没有可用的本地起始提交，请先更新主仓库：%1$@"
           }
         }
       }
@@ -2826,6 +2809,23 @@
         }
       }
     },
+    "message.repositoryCloneWillBeMovedToTrash": {
+      "extractionState": "manual",
+      "localizations": {
+        "en-US": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The local repository clone will be moved to Trash."
+          }
+        },
+        "zh-Hans-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该仓库的本地克隆将移入废纸篓。"
+          }
+        }
+      }
+    },
     "message.repositoryDirectoryIsMissing": {
       "extractionState": "manual",
       "localizations": {
@@ -2900,13 +2900,13 @@
         "en-US": {
           "stringUnit": {
             "state": "translated",
-            "value": "Repository members must be removed first."
+            "value": "Remove the repository's worktrees from its groups first."
           }
         },
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "请先移除仓库成员。"
+            "value": "请先移除该仓库在各分组中的工作树。"
           }
         }
       }
@@ -2958,23 +2958,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "仓库远端必须指向此临时目录内的本地路径：%1$@"
-          }
-        }
-      }
-    },
-    "message.repositorySummaryIsUnavailable": {
-      "extractionState": "manual",
-      "localizations": {
-        "en-US": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Repository summary is unavailable."
-          }
-        },
-        "zh-Hans-CN": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "仓库摘要不可用。"
           }
         }
       }
@@ -3676,6 +3659,23 @@
         }
       }
     },
+    "message.worktreeIsNotRegisteredInGroup": {
+      "extractionState": "manual",
+      "localizations": {
+        "en-US": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This worktree is not registered in this group."
+          }
+        },
+        "zh-Hans-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此工作树未在该分组中登记。"
+          }
+        }
+      }
+    },
     "message.worktreePathAlreadyExists": {
       "extractionState": "manual",
       "localizations": {
@@ -4209,13 +4209,13 @@
         "en-US": {
           "stringUnit": {
             "state": "translated",
-            "value": "Member worktree deletion cancelled"
+            "value": "Worktree deletion cancelled"
           }
         },
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "已取消删除成员工作树"
+            "value": "已取消删除工作树"
           }
         }
       }
@@ -4226,13 +4226,13 @@
         "en-US": {
           "stringUnit": {
             "state": "translated",
-            "value": "Couldn’t delete the member worktree"
+            "value": "Couldn’t delete the worktree"
           }
         },
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "无法删除成员工作树"
+            "value": "无法删除工作树"
           }
         }
       }
@@ -4243,13 +4243,13 @@
         "en-US": {
           "stringUnit": {
             "state": "translated",
-            "value": "Member worktree deletion partially completed"
+            "value": "Worktree deletion partially completed"
           }
         },
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "成员工作树删除部分完成"
+            "value": "工作树删除部分完成"
           }
         }
       }
@@ -4260,13 +4260,13 @@
         "en-US": {
           "stringUnit": {
             "state": "translated",
-            "value": "Member worktree deletion skipped"
+            "value": "Worktree deletion skipped"
           }
         },
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "已跳过删除成员工作树"
+            "value": "已跳过删除工作树"
           }
         }
       }
@@ -4277,13 +4277,13 @@
         "en-US": {
           "stringUnit": {
             "state": "translated",
-            "value": "Member worktree deleted"
+            "value": "Worktree deleted"
           }
         },
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "成员工作树已删除"
+            "value": "工作树已删除"
           }
         }
       }
@@ -4294,13 +4294,13 @@
         "en-US": {
           "stringUnit": {
             "state": "translated",
-            "value": "Member worktree deleted with warnings"
+            "value": "Worktree deleted with warnings"
           }
         },
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "成员工作树已删除，请查看提示"
+            "value": "工作树已删除，请查看提示"
           }
         }
       }
@@ -4691,7 +4691,7 @@
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "已取消更新主仓库"
+            "value": "已取消更新仓库"
           }
         }
       }
@@ -4708,7 +4708,7 @@
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "更新主仓库？"
+            "value": "更新仓库？"
           }
         }
       }
@@ -4725,7 +4725,7 @@
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "无法更新主仓库"
+            "value": "无法更新仓库"
           }
         }
       }
@@ -4742,7 +4742,7 @@
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "主仓库更新部分完成"
+            "value": "仓库更新部分完成"
           }
         }
       }
@@ -4759,7 +4759,7 @@
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "已跳过更新主仓库"
+            "value": "已跳过更新仓库"
           }
         }
       }
@@ -4776,7 +4776,7 @@
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "主仓库已更新"
+            "value": "仓库已更新"
           }
         }
       }
@@ -4793,7 +4793,7 @@
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "主仓库已更新，请查看提示"
+            "value": "仓库已更新，请查看提示"
           }
         }
       }
@@ -6426,13 +6426,13 @@
         "en-US": {
           "stringUnit": {
             "state": "translated",
-            "value": "Delete member worktree?"
+            "value": "Delete worktree?"
           }
         },
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "删除成员工作树？"
+            "value": "删除工作树？"
           }
         }
       }
@@ -8200,7 +8200,7 @@
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "主仓库无需更新"
+            "value": "仓库无需更新"
           }
         }
       }
@@ -9114,7 +9114,24 @@
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "更新主仓库"
+            "value": "更新仓库"
+          }
+        }
+      }
+    },
+    "ui.updateRepositoriesHelp": {
+      "extractionState": "manual",
+      "localizations": {
+        "en-US": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fetch each repository’s locally recorded default branch from its remote and try to fast-forward the corresponding local branch."
+          }
+        },
+        "zh-Hans-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从远端获取各仓库本地记录的默认分支，并尝试快进对应的本地分支。"
           }
         }
       }
@@ -9238,6 +9255,23 @@
         }
       }
     },
+    "ui.updateWorktreesHelp": {
+      "extractionState": "manual",
+      "localizations": {
+        "en-US": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use local Git data to try to fast-forward the current branches of group root worktrees and the worktrees within each group."
+          }
+        },
+        "zh-Hans-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用本地 Git 数据，尝试快进分组根工作树和组内工作树的当前分支。"
+          }
+        }
+      }
+    },
     "ui.updated": {
       "extractionState": "manual",
       "localizations": {
@@ -9284,7 +9318,7 @@
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "正在更新主仓库"
+            "value": "正在更新仓库"
           }
         }
       }
@@ -9301,7 +9335,7 @@
         "zh-Hans-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "正在更新主仓库…"
+            "value": "正在更新仓库…"
           }
         }
       }

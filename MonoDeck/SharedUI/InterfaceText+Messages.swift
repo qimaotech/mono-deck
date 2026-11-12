@@ -54,7 +54,7 @@ extension InterfaceText {
       return string(.messageDeletionTargetsOrCheckedOutBranchesChangedNothing)
     case .repositoryIsNotConfigured: return string(.messageRepositoryIsNotConfigured)
     case .groupIsNotConfigured: return string(.messageGroupIsNotConfigured)
-    case .memberIsNotConfigured: return string(.messageMemberIsNotConfigured)
+    case .worktreeIsNotRegisteredInGroup: return string(.messageWorktreeIsNotRegisteredInGroup)
     case .missingRepositoryStillHasConfiguredMembers:
       return string(.messageMissingRepositoryStillHasConfiguredMembers)
     case .existingDirectoryHasNoMatchingGitRegistration(let arg1):
@@ -87,8 +87,8 @@ extension InterfaceText {
     case .worktreePathAlreadyExists(let arg1):
       return string(.messageWorktreePathAlreadyExists(arg1))
     case .worktreePathIsAlreadyRegistered: return string(.messageWorktreePathIsAlreadyRegistered)
-    case .noLocalStartingCommitUpdateMainRepositoryFirst(let arg1):
-      return string(.messageNoLocalStartingCommitUpdateMainRepositoryFirst(arg1))
+    case .memberRepositoryStartingCommitUnavailable(let repositoryID):
+      return string(.messageMemberRepositoryStartingCommitUnavailable(repositoryID))
     case .couldNotVerifyNewBranch(let arg1): return string(.messageCouldNotVerifyNewBranch(arg1))
     case .newBranchChangedDuringCreationAndWasKept(let arg1):
       return string(.messageNewBranchChangedDuringCreationAndWasKept(arg1))
@@ -114,7 +114,7 @@ extension InterfaceText {
     case .workspaceRecordIsMissing(let arg1): return string(.messageWorkspaceRecordIsMissing(arg1))
     case .workspaceTracksRepositoriesOrWorktreesRemovePathsFrom:
       return string(.messageWorkspaceTracksRepositoriesOrWorktreesRemovePathsFrom)
-    case .repositorySummaryIsUnavailable: return string(.messageRepositorySummaryIsUnavailable)
+    case .gitDetailsAreUnavailable: return string(.messageGitDetailsAreUnavailable)
     case .resourceIsNotConfigured: return string(.messageResourceIsNotConfigured)
     case .worktreeRegistrationIsMissing(let arg1):
       return string(.messageWorktreeRegistrationIsMissing(arg1))
@@ -312,7 +312,8 @@ extension InterfaceText {
       return string(.messageWorkspaceIsInUseByAnotherMonoDeckOperation)
     case .couldNotAcquireWorkspaceLock: return string(.messageCouldNotAcquireWorkspaceLock)
     case .workspaceLockTimedOut: return string(.messageWorkspaceLockTimedOut)
-    case .mainRepositoryWillBeMovedTrash: return string(.messageMainRepositoryWillBeMovedTrash)
+    case .repositoryCloneWillBeMovedToTrash:
+      return string(.messageRepositoryCloneWillBeMovedToTrash)
     case .onlyRepositoryRecordEntryWillBeRemoved:
       return string(.messageOnlyRepositoryRecordEntryWillBeRemoved)
     case .workingTreeIsClean: return string(.messageWorkingTreeIsClean)

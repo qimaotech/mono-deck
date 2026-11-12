@@ -5,7 +5,7 @@ extension WorkspaceService {
     let started = ContinuousClock.now
     defer { git.runner.diagnostics?.record("recovery.scan", duration: started.duration(to: .now)) }
     var record = WorkspaceRecord(root: root.path)
-    let workspace = try await inspectMainRepository(root)
+    let workspace = try await inspectRepository(atMainWorktree: root)
     let candidates = try await recoverResources(
       recoveryEntries("repositories", at: root), phase: "repositories"
     ) { entry -> RecoveredRepository? in
@@ -17,7 +17,7 @@ extension WorkspaceService {
         let expected = try PathSafety.child(
           "repositories/\(identity.id)", of: root, allowMissing: false)
         guard PathSafety.identity(path) == PathSafety.identity(expected) else { return nil }
-        var inspection = try await inspectMainRepository(path)
+        var inspection = try await inspectRepository(atMainWorktree: path)
         inspection.origin = origin
         try await checkWorktree(.repository(identity.id), at: path, repository: inspection)
         return .init(repository: Repository(url: origin), inspection: inspection)
@@ -58,13 +58,14 @@ extension WorkspaceService {
     git.runner.diagnostics?.record("recovery.groups.accepted", count: groups.count)
     let memberCandidates = groups.flatMap { name in
       repositories.map {
-        RecoveryMember(groupName: name, repository: $0.repository.id, inspection: $0.inspection)
+        RecoveryMember(groupName: name, repositoryID: $0.repository.id, inspection: $0.inspection)
       }
     }
     let members = try await recoverResources(memberCandidates, phase: "members") {
       member -> RecoveryMember? in
       do {
-        let resource = Resource.member(groupName: member.groupName, repositoryID: member.repository)
+        let resource = Resource.member(
+          groupName: member.groupName, repositoryID: member.repositoryID)
         let path = try PathSafety.child(resource.path, of: root, allowMissing: false)
         try await checkWorktree(resource, at: path, repository: member.inspection)
         return member
@@ -75,7 +76,7 @@ extension WorkspaceService {
     }
     let acceptedMembers = members.compactMap { $0 }
     for member in acceptedMembers {
-      record.groups[member.groupName]?.repositoryIDs.append(member.repository)
+      record.groups[member.groupName]?.repositoryIDs.append(member.repositoryID)
     }
     git.runner.diagnostics?.record("recovery.members.accepted", count: acceptedMembers.count)
     try checkCancellation()
@@ -139,6 +140,6 @@ private struct RecoveredRepository: Sendable {
 
 private struct RecoveryMember: Sendable {
   let groupName: String
-  let repository: String
+  let repositoryID: String
   let inspection: RepositoryInspection
 }

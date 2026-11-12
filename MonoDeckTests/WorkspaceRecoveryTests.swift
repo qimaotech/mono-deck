@@ -11,8 +11,8 @@ struct WorkspaceRecoveryTests {
     let original = try f.service.store.load(f.root)
     let names = ["repo", "repo-1", "repo-2", "repo-3", "repo-4"]
     for name in names.dropFirst() {
-      let path = original.repositoryURL(name)
-      try FileManager.default.copyItem(at: original.repositoryURL("repo"), to: path)
+      let path = original.repositoryDirectoryURL(name)
+      try FileManager.default.copyItem(at: original.repositoryDirectoryURL("repo"), to: path)
       _ = try await f.service.git.run(
         ["config", "remote.origin.url", "https://mono-deck-test.invalid/\(name).git"], at: path)
     }
@@ -20,7 +20,9 @@ struct WorkspaceRecoveryTests {
     try FileManager.default.removeItem(at: file)
     var gates: [ReloadValidationGate] = []
     defer { for index in gates.indices { try? gates[index].resume() } }
-    for name in names { gates.append(try ReloadValidationGate(original.repositoryURL(name))) }
+    for name in names {
+      gates.append(try ReloadValidationGate(original.repositoryDirectoryURL(name)))
+    }
     let opening = Task {
       await f.service.openWorkspaceWithRecord(f.root, recoverUnregisteredResources: true)
     }
@@ -61,7 +63,7 @@ struct WorkspaceRecoveryTests {
     defer { f.remove() }
     try await f.prepareGroup("feature", repositoryIDs: ["repo"])
     let record = try f.service.store.load(f.root)
-    let main = record.repositoryURL("repo")
+    let main = record.repositoryDirectoryURL("repo")
     _ = try await f.service.git.run(
       ["switch", "-c", "external/root"], at: record.groupURL("feature"))
     _ = try await f.service.git.run(
@@ -97,9 +99,9 @@ struct WorkspaceRecoveryTests {
     var initial = try f.service.store.load(f.root)
     let other = Repository(url: "https://mono-deck-test.invalid/other.git")
     try FileManager.default.copyItem(
-      at: initial.repositoryURL("repo"), to: initial.repositoryURL(other.id))
+      at: initial.repositoryDirectoryURL("repo"), to: initial.repositoryDirectoryURL(other.id))
     _ = try await f.service.git.run(
-      ["config", "remote.origin.url", other.url], at: initial.repositoryURL(other.id))
+      ["config", "remote.origin.url", other.url], at: initial.repositoryDirectoryURL(other.id))
     initial.repositories.append(other)
     try f.service.store.save(initial)
     _ = try await f.service.git.ensureIgnore([other.id], at: f.root)
@@ -111,7 +113,7 @@ struct WorkspaceRecoveryTests {
     previous.repositories[0].displayNameOverride = "Custom"
     previous.groups["feature"]?.createdAt = "2001-01-01T00:00:00Z"
     try f.service.store.save(previous)
-    let main = previous.repositoryURL("repo")
+    let main = previous.repositoryDirectoryURL("repo")
     _ = try await f.service.git.run(
       ["checkout", "-b", "external/task"], at: previous.groupURL("feature"))
     _ = try await f.service.git.run(
@@ -120,7 +122,9 @@ struct WorkspaceRecoveryTests {
     _ = try await f.service.git.run(
       ["worktree", "lock", previous.memberURL("feature", "repo").path], at: main)
     var files = Dictionary(
-      uniqueKeysWithValues: previous.repositories.map { (previous.repositoryURL($0.id), "README") })
+      uniqueKeysWithValues: previous.repositories.map {
+        (previous.repositoryDirectoryURL($0.id), "README")
+      })
     for name in previous.groups.keys {
       files[previous.groupURL(name)] = ".gitignore"
       for repo in previous.groups[name]!.repositoryIDs {
@@ -204,23 +208,23 @@ struct WorkspaceRecoveryTests {
       contentsOf: previous.memberURL("valid", "repo").appending(path: ".git"))
     try rootLink.write(to: broken)
     try memberLink.write(to: foreign)
-    let mismatch = previous.repositoryURL("mismatch")
-    try FileManager.default.copyItem(at: previous.repositoryURL("repo"), to: mismatch)
-    let invalidOrigin = previous.repositoryURL("invalid-origin")
-    try FileManager.default.copyItem(at: previous.repositoryURL("repo"), to: invalidOrigin)
+    let mismatch = previous.repositoryDirectoryURL("mismatch")
+    try FileManager.default.copyItem(at: previous.repositoryDirectoryURL("repo"), to: mismatch)
+    let invalidOrigin = previous.repositoryDirectoryURL("invalid-origin")
+    try FileManager.default.copyItem(at: previous.repositoryDirectoryURL("repo"), to: invalidOrigin)
     _ = try await f.service.git.run(
       ["config", "remote.origin.url", "file:///unsupported/repository.git"], at: invalidOrigin)
-    let symlink = previous.repositoryURL("link")
+    let symlink = previous.repositoryDirectoryURL("link")
     try FileManager.default.createSymbolicLink(
-      at: symlink, withDestinationURL: previous.repositoryURL("repo"))
+      at: symlink, withDestinationURL: previous.repositoryDirectoryURL("repo"))
     let docs = previous.groupURL("docs")
     try FileManager.default.createDirectory(at: docs, withIntermediateDirectories: false)
     try Data("user document".utf8).write(to: docs.appending(path: "README"))
     let external = f.directory.appending(path: "external-worktree")
     _ = try await f.service.git.run(
-      ["worktree", "add", "--detach", external.path], at: previous.repositoryURL("repo"))
+      ["worktree", "add", "--detach", external.path], at: previous.repositoryDirectoryURL("repo"))
     let registrations = try await f.service.git.run(
-      ["worktree", "list", "--porcelain", "-z"], at: previous.repositoryURL("repo")
+      ["worktree", "list", "--porcelain", "-z"], at: previous.repositoryDirectoryURL("repo")
     ).stdout
     try FileManager.default.removeItem(at: f.service.store.recordURL(f.root))
     let opened = await f.service.openWorkspaceWithRecord(f.root, recoverUnregisteredResources: true)
@@ -235,7 +239,7 @@ struct WorkspaceRecoveryTests {
         && PathSafety.exists(external))
     #expect(
       try await f.service.git.run(
-        ["worktree", "list", "--porcelain", "-z"], at: previous.repositoryURL("repo")
+        ["worktree", "list", "--porcelain", "-z"], at: previous.repositoryDirectoryURL("repo")
       ).stdout == registrations)
   }
 

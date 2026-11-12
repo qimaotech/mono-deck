@@ -5,7 +5,7 @@
 ### Model responsibilities and lifecycle
 
 - Before writing, pause related reads and wait for cancellation to finish so reads and writes cannot overlap. When switching workspaces or quitting, cancel tasks tied to the current context as needed and wait for cleanup to prevent stale results from being published. See [WorkspaceModel](MonoDeck/Features/Workspace/WorkspaceModel.swift) and [AppModel](MonoDeck/App/AppModel.swift).
-- Repository addition and group creation forms stay bound to the workspace that was current when they opened. When creating a group, Core revalidates the selected repository identities under the lock to catch stale selections. See [ManagementModel](MonoDeck/Features/Management/ManagementModel.swift) and [WorktreeService](MonoDeckCore/Workflows/WorktreeService.swift).
+- Repository addition and worktree group creation forms stay bound to the workspace that was current when they opened. When creating a group, Core revalidates the selected repository identities under the lock to catch stale selections. See [ManagementModel](MonoDeck/Features/Management/ManagementModel.swift) and [WorktreeGroupService](MonoDeckCore/Workflows/WorktreeGroupService.swift).
 
 ### Git reads and caching
 
@@ -30,7 +30,7 @@
 ### CLI and domain contracts
 
 - See [External data and CLI contract](GLOSSARY.md#external-data-and-cli-contract) for public formats, previews, and confirmation rules.
-- Workspace YAML import clones outside the workspace lock so network waits do not hold it. Revalidate the workspace record and target paths under the lock before publishing changes. Retries can reuse verified worktrees. See [YAMLService](MonoDeckCore/Workflows/YAMLService.swift) and [WorktreeService](MonoDeckCore/Workflows/WorktreeService.swift).
+- Workspace YAML import clones outside the workspace lock so network waits do not hold it. Revalidate the workspace record and target paths under the lock before publishing changes. Retries can reuse verified worktrees. See [YAMLService](MonoDeckCore/Workflows/YAMLService.swift) and [WorktreeGroupService](MonoDeckCore/Workflows/WorktreeGroupService.swift).
 - During deletion, revalidate Git ownership and authorized targets under the lock to prevent accidental deletion based on a stale preview. When eligible, defer physical file cleanup to the background to shorten the synchronous wait. See [DeletionService](MonoDeckCore/Workflows/DeletionService.swift) and [WorktreeCleanup](MonoDeckCore/Infrastructure/FileSystem/WorktreeCleanup.swift).
 
 ## Building, running, and debugging
@@ -52,7 +52,7 @@ Run these commands from the repository root with a full Xcode installation, incl
 
 Use `task format` to format all Swift source directories, or `task format -- <path>` to format a specific file or directory. Both use the default `swift-format` settings from the selected Xcode toolchain.
 
-Run `task format:check` to check Swift files in `MonoDeck`, `MonoDeckCore`, `MonoDeckCLI`, `MonoDeckTests`, and `script`. On pull requests, `build` runs this check before packaging. The `Test` job runs the test suite in parallel.
+Run `task format:check` to check Swift files in `MonoDeck`, `MonoDeckCore`, `MonoDeckCLI`, `MonoDeckTests`, and `script`. On pull requests, the `build` job checks formatting before packaging, and the `Test` job runs the suite independently of `build`.
 
 ## Running and diagnosing tests
 
@@ -63,10 +63,12 @@ See [Verification and delivery](AGENTS.md#verification-and-delivery) for test sc
 | Filter by test class | `task test TEST_FILTER=MonoDeckTests/VersionTests` |
 | List test identifiers for filtering by method | `task test -- -enumerate-tests` |
 | Save the result bundle to a new path | `task test TEST_FILTER=MonoDeckTests/VersionTests -- -resultBundlePath "/tmp/MonoDeck Tests.xcresult"` |
-| Run the full suite | `task test` |
+| Run the standard suite | `task test` |
+| Run the opt-in Git read and cache benchmarks | `TEST_RUNNER_MONO_DECK_READ_BENCHMARK=1 task test TEST_FILTER=MonoDeckTests/RepositoryReadPerformanceTests` |
 
 - In the sandbox, use read-only checks to verify write access to the user-level SwiftPM cache. If elevated permissions are required, request them on the first test run.
 - A run fails if it finds no tests or skips every test, except when enumerating tests. On failure, check the full log at the path reported in the output. Append `-- --verbose` to stream the log. The runner removes result bundles by default. If it cannot verify test environment cleanup, it preserves the artifacts and returns a failure. See [run_tests.py](script/run_tests.py).
+- The benchmarks write `BENCHMARK` records with timings, Git command counts, and cache statistics to the test log.
 
 ## Cleaning up temporary instances
 

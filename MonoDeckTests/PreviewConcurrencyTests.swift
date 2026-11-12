@@ -56,7 +56,7 @@ struct PreviewConcurrencyTests {
     let record = try await prepare(fixture)
     let member = record.memberURL("feature", "repo")
     let original = try Data(contentsOf: fixture.service.store.recordURL(fixture.root))
-    let index = record.repositoryURL("repo").appending(path: ".git/index")
+    let index = record.repositoryDirectoryURL("repo").appending(path: ".git/index")
     let invalidIndex = Data("invalid index".utf8)
     try invalidIndex.write(to: index)
 
@@ -64,7 +64,7 @@ struct PreviewConcurrencyTests {
 
     #expect(result.status == .failed && result.reasonCode == "git-failed")
     #expect(result.items.allSatisfy { $0.effects.isEmpty })
-    #expect(PathSafety.exists(record.repositoryURL("repo")) && PathSafety.exists(member))
+    #expect(PathSafety.exists(record.repositoryDirectoryURL("repo")) && PathSafety.exists(member))
     #expect(try Data(contentsOf: fixture.service.store.recordURL(fixture.root)) == original)
     #expect(try Data(contentsOf: index) == invalidIndex)
   }
@@ -97,7 +97,8 @@ struct PreviewConcurrencyTests {
       try await waitFor(trace, containing: "check-ref-format refs/heads/feature")
       let member = record.memberURL("feature", "other")
       _ = try await fixture.service.git.run(
-        ["worktree", "add", "-b", "feature", member.path], at: record.repositoryURL("other"))
+        ["worktree", "add", "-b", "feature", member.path],
+        at: record.repositoryDirectoryURL("other"))
       record.groups["feature"]?.repositoryIDs.append("other")
       try fixture.service.store.save(record)
       lease.unlock()
@@ -131,7 +132,7 @@ struct PreviewConcurrencyTests {
       let lease = try fixture.service.store.tryLock(fixture.root)
       do {
         _ = try await fixture.service.git.run(
-          ["branch", "changed", "feature"], at: record.repositoryURL("repo"))
+          ["branch", "changed", "feature"], at: record.repositoryDirectoryURL("repo"))
         _ = try await fixture.service.git.run(
           ["symbolic-ref", "HEAD", "refs/heads/changed"], at: record.memberURL("feature", "repo"))
         lease.unlock()
@@ -187,7 +188,7 @@ struct PreviewConcurrencyTests {
     for arguments in [
       ["config", "core.fsmonitor", monitor.path], ["config", "core.fsmonitorHookVersion", "2"],
     ] {
-      _ = try await fixture.service.git.run(arguments, at: record.repositoryURL("repo"))
+      _ = try await fixture.service.git.run(arguments, at: record.repositoryDirectoryURL("repo"))
     }
     var runner = fixture.service.git.runner
     runner.environment["MONO_DECK_PREVIEW_SCAN_PROBE"] = probe.path

@@ -381,8 +381,8 @@ private struct UpdateBatch {
     record.repositories = []
     for index in 0..<8 {
       let repository = Repository(url: "https://mono-deck-test.invalid/repo\(index).git")
-      let path = record.repositoryURL(repository.id)
-      try FileManager.default.copyItem(at: record.repositoryURL("repo"), to: path)
+      let path = record.repositoryDirectoryURL(repository.id)
+      try FileManager.default.copyItem(at: record.repositoryDirectoryURL("repo"), to: path)
       try FileManager.default.copyItem(
         at: f.directory.appending(path: "repo.git"),
         to: f.directory.appending(path: "repo\(index).git"))

@@ -2,8 +2,8 @@
 
 ## Product boundaries
 
-- The workspace root is the main worktree of the workspace repository. Group root worktrees are linked worktrees of the workspace repository, and member worktrees are linked worktrees of the selected business repositories.
-- Git Browser shows local changes, unique commits, and behind commits. Use external tools for development, commits, and merges in business repositories. MonoDeck automatically commits the workspace's `.gitignore` and bundled workflow files when needed.
+- A workspace manages member repositories and task worktree groups. Each group contains a task member worktree for each selected repository. The workspace root is the workspace repository's main worktree, and group roots are its linked worktrees. Each member repository has a main worktree under `repositories/`, and its task member worktrees are linked worktrees of that repository.
+- Git Browser shows local changes, unique commits, and behind commits. Use external tools for development, commits, and merges in member repositories. MonoDeck automatically commits the workspace's `.gitignore` and bundled workflow files when needed.
 - Cancellation or partial failure can leave completed changes in place. Distinguish completed work, unfinished work, and retained data in feedback. Avoid promising a full rollback.
 
 ## Repository layout

@@ -226,7 +226,7 @@ public struct WorkspaceService: Sendable {
     guard case .withSummary = content else { return }
     if let error = snapshot.summaryError { throw error }
     guard let summary = snapshot.summary else {
-      throw MonoDeckError("resource-unavailable", .repositorySummaryIsUnavailable)
+      throw MonoDeckError("resource-unavailable", .gitDetailsAreUnavailable)
     }
     item.data?["head"] = summary.head
     item.data?["head-oid"] = summary.headOID
@@ -262,39 +262,43 @@ public struct WorkspaceService: Sendable {
     case .workspace, .cli: configured = false
     }
     guard configured else { throw MonoDeckError("target-not-configured", .resourceIsNotConfigured) }
-    let main: URL
+    let mainWorktreeURL: URL
     let origin: String?
     if let repo = resource.repositoryID {
       guard let repository else {
         throw MonoDeckError("target-not-configured", .repositoryIsNotConfigured)
       }
-      main = try PathSafety.child("repositories/\(repo)", of: record.rootURL, allowMissing: false)
+      mainWorktreeURL = try PathSafety.child(
+        "repositories/\(repo)", of: record.rootURL, allowMissing: false)
       origin = repository.url
     } else {
-      main = record.rootURL
+      mainWorktreeURL = record.rootURL
       origin = nil
     }
-    return try await inspectMainRepository(main, origin: origin)
+    return try await inspectRepository(atMainWorktree: mainWorktreeURL, origin: origin)
   }
-  func inspectMainRepository(_ main: URL, origin: String? = nil) async throws
+  func inspectRepository(atMainWorktree mainWorktreeURL: URL, origin: String? = nil) async throws
     -> RepositoryInspection
   {
-    let metadata = try await git.repositoryMetadata(at: main)
+    let metadata = try await git.repositoryMetadata(at: mainWorktreeURL)
     if let metadata {
-      try await git.checkRepository(main, origin: origin, main: true, topLevel: metadata.topLevel)
+      try await git.checkRepository(
+        mainWorktreeURL, origin: origin, main: true, topLevel: metadata.topLevel)
     } else {
-      try await git.checkRepository(main, origin: origin, main: true)
+      try await git.checkRepository(mainWorktreeURL, origin: origin, main: true)
     }
-    let registrations = try await git.registrations(at: main)
+    let registrations = try await git.registrations(at: mainWorktreeURL)
     let common: String
     if let metadata {
       common = metadata.commonDirectory
     } else {
       common = try await git.run(
-        ["rev-parse", "--path-format=absolute", "--git-common-dir"], at: main
+        ["rev-parse", "--path-format=absolute", "--git-common-dir"], at: mainWorktreeURL
       ).text
     }
-    return .init(path: main, origin: origin, registrations: registrations, commonDirectory: common)
+    return .init(
+      mainWorktreeURL: mainWorktreeURL, origin: origin, registrations: registrations,
+      commonDirectory: common)
   }
   func checkWorktree(
     _ resource: Resource, at path: URL, repository: RepositoryInspection, validateHEAD: Bool = true
@@ -436,7 +440,7 @@ public struct WorkspaceService: Sendable {
 }
 
 struct RepositoryInspection: Sendable {
-  var path: URL
+  var mainWorktreeURL: URL
   var origin: String?
   var registrations: [WorktreeRegistration]
   var commonDirectory: String

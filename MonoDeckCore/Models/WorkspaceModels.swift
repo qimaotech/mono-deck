@@ -41,7 +41,7 @@ public struct WorkspaceRecord: Codable, Equatable, Sendable {
   public var groups: [String: WorktreeGroup] = [:]
   public init(root: String) { self.root = root }
   public var rootURL: URL { URL(fileURLWithPath: root, isDirectory: true) }
-  public func repositoryURL(_ repositoryID: String) -> URL {
+  public func repositoryDirectoryURL(_ repositoryID: String) -> URL {
     rootURL.appending(path: "repositories/\(repositoryID)")
   }
   public func groupURL(_ groupName: String) -> URL {

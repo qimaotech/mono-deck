@@ -13,9 +13,9 @@ struct WorkflowTests {
     let others = (1...6).map { Repository(url: "https://mono-deck-test.invalid/other\($0).git") }
     for other in others {
       try FileManager.default.copyItem(
-        at: record.repositoryURL("repo"), to: record.repositoryURL(other.id))
+        at: record.repositoryDirectoryURL("repo"), to: record.repositoryDirectoryURL(other.id))
       _ = try await f.service.git.run(
-        ["config", "remote.origin.url", other.url], at: record.repositoryURL(other.id))
+        ["config", "remote.origin.url", other.url], at: record.repositoryDirectoryURL(other.id))
       record.repositories.append(other)
     }
     try f.service.store.save(record)
@@ -26,7 +26,7 @@ struct WorkflowTests {
     record = try f.service.store.load(f.root)
     let member = record.memberURL("feature", "repo")
     try Data("/ignored/\n/ignored.txt\n".utf8).write(
-      to: record.repositoryURL("repo").appending(path: ".git/info/exclude"))
+      to: record.repositoryDirectoryURL("repo").appending(path: ".git/info/exclude"))
     let ignored = member.appending(path: "ignored/nested")
     try FileManager.default.createDirectory(at: ignored, withIntermediateDirectories: true)
     try Data("ignored".utf8).write(to: ignored.appending(path: "file.txt"))
@@ -52,7 +52,7 @@ struct WorkflowTests {
       for arguments in [
         ["config", "core.fsmonitor", monitor.path], ["config", "core.fsmonitorHookVersion", "2"],
       ] {
-        _ = try await f.service.git.run(arguments, at: record.repositoryURL(repo))
+        _ = try await f.service.git.run(arguments, at: record.repositoryDirectoryURL(repo))
       }
     }
     var runner = f.service.git.runner
@@ -184,7 +184,8 @@ struct WorkflowTests {
     #expect(PathSafety.exists(record.groupURL("feature")))
     #expect(!PathSafety.exists(record.memberURL("feature", "repo")))
     #expect(
-      try await f.service.git.oid("refs/heads/feature", at: record.repositoryURL("repo")) == nil)
+      try await f.service.git.oid("refs/heads/feature", at: record.repositoryDirectoryURL("repo"))
+        == nil)
   }
   @Test func uncertainSaveKeepsResourcesAndRecordsEffects() async throws {
     let f = try await Fixture(template: .singleRepository)
@@ -299,7 +300,7 @@ struct WorkflowTests {
     #expect(
       result.status == .failed && result.reasonCode == "workspace-branch-mismatch", "\(result)")
     #expect(try f.service.store.load(f.root) == before)
-    #expect(!PathSafety.exists(before.repositoryURL("repo")))
+    #expect(!PathSafety.exists(before.repositoryDirectoryURL("repo")))
     #expect(!PathSafety.exists(before.groupURL("feature")))
     #expect(try await git.oid("HEAD", at: f.root) == head)
     #expect(try Data(contentsOf: ignore) == originalIgnore)
@@ -471,7 +472,7 @@ struct WorkflowTests {
     let git = f.service.git
     let group = before.groupURL("feature")
     let member = before.memberURL("feature", "repo")
-    let main = before.repositoryURL("repo")
+    let main = before.repositoryDirectoryURL("repo")
     let start = try #require(await git.oid("HEAD", at: f.root))
     let memberResource = Resource.member(groupName: "feature", repositoryID: "repo")
     let failingStore = WorkspaceStore(support: f.service.store.support) { data, _ in
@@ -586,7 +587,7 @@ struct WorkflowTests {
     let originalRecord = try Data(contentsOf: recordURL)
     let group = record.groupURL("feature")
     let member = record.memberURL("feature", "repo")
-    let main = record.repositoryURL("repo")
+    let main = record.repositoryDirectoryURL("repo")
     let git = f.service.git
     let failingStore = WorkspaceStore(support: f.service.store.support) { _, url in
       try Data("invalid".utf8).write(to: url)
@@ -653,7 +654,7 @@ struct WorkflowTests {
     try await f.prepareEmptyGroup("feature", branchName: "feature/task")
     try f.service.store.save(record)
     let member = record.memberURL("feature", "repo")
-    let expectedMain = record.repositoryURL("repo")
+    let expectedMain = record.repositoryDirectoryURL("repo")
     let owner = wrongRepository ? f.directory.appending(path: "source") : expectedMain
     let actualBranch = wrongRepository ? "feature/task" : "different/task"
     if wrongRepository {
@@ -681,7 +682,9 @@ struct WorkflowTests {
     #expect(saved.groups["feature"] == nil)
     #expect(saved.groups["independent"]?.repositoryIDs == [])
     #expect(!PathSafety.exists(record.memberURL("feature", "other")))
-    #expect(try await git.oid("refs/heads/feature/task", at: record.repositoryURL("other")) == nil)
+    #expect(
+      try await git.oid("refs/heads/feature/task", at: record.repositoryDirectoryURL("other"))
+        == nil)
     #expect(
       try await git.run(["symbolic-ref", "HEAD"], at: member).text == "refs/heads/\(actualBranch)")
     #expect(try Data(contentsOf: note) == data)
@@ -825,7 +828,8 @@ struct WorkflowTests {
     try await f.prepareGroup("feature", repositoryIDs: ["repo"])
     let record = try f.service.store.load(f.root)
     _ = try await f.service.git.run(
-      ["symbolic-ref", "--delete", "refs/remotes/origin/HEAD"], at: record.repositoryURL("repo"))
+      ["symbolic-ref", "--delete", "refs/remotes/origin/HEAD"],
+      at: record.repositoryDirectoryURL("repo"))
     let original = try Data(contentsOf: f.service.store.recordURL(f.root))
     let trace = f.directory.appending(path: "tree-trace")
     let arguments = ["workspace", "tree", "--workspace", f.root.path]
@@ -920,7 +924,8 @@ struct WorkflowTests {
       """.utf8
     ).write(to: monitor)
     try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: monitor.path)
-    let target = command == "group" ? record.groupURL("feature") : record.repositoryURL("repo")
+    let target =
+      command == "group" ? record.groupURL("feature") : record.repositoryDirectoryURL("repo")
     for arguments in [
       ["config", "core.fsmonitor", monitor.path], ["config", "core.fsmonitorHookVersion", "2"],
     ] {
@@ -1006,7 +1011,7 @@ struct WorkflowTests {
         record.groups["feature"]?.repositoryIDs = []
         _ = try await f.service.git.run(
           ["config", "remote.origin.url", "https://mono-deck-test.invalid/other.git"],
-          at: saved.repositoryURL("repo"))
+          at: saved.repositoryDirectoryURL("repo"))
       } else {
         try Data("gitdir: missing-git-directory\n".utf8).write(to: metadata)
       }
@@ -1034,7 +1039,7 @@ struct WorkflowTests {
       #expect(PathSafety.exists(saved.memberURL("feature", "repo")))
       if kind == "repository" {
         _ = try await f.service.git.run(
-          ["config", "remote.origin.url", f.remoteURL], at: saved.repositoryURL("repo"))
+          ["config", "remote.origin.url", f.remoteURL], at: saved.repositoryDirectoryURL("repo"))
       } else {
         try gitFile.write(to: metadata)
       }
@@ -1181,7 +1186,7 @@ struct WorkflowTests {
     defer { f.remove() }
     try await f.prepareGroup("feature", repositoryIDs: ["repo"])
     let saved = try f.service.store.load(f.root)
-    let repository = saved.repositoryURL("repo")
+    let repository = saved.repositoryDirectoryURL("repo")
     let group = saved.groupURL("feature")
     let record = f.service.store.recordURL(f.root)
     let original = try Data(contentsOf: record)

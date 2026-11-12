@@ -14,7 +14,7 @@ struct BranchOccupancyTests {
     if kind == "member" {
       _ = try await f.service.git.run(["branch", "-m", "workspace"], at: f.root)
     }
-    let repository = kind == "root" ? f.root : record.repositoryURL("repo")
+    let repository = kind == "root" ? f.root : record.repositoryDirectoryURL("repo")
     if packed { _ = try await f.service.git.run(["pack-refs", "--all"], at: repository) }
     let volume = try repository.resourceValues(forKeys: [.volumeSupportsCaseSensitiveNamesKey])
     guard let caseSensitive = volume.volumeSupportsCaseSensitiveNames else {
@@ -23,7 +23,7 @@ struct BranchOccupancyTests {
     }
     let rootHead = try #require(try await f.service.git.oid("HEAD", at: f.root))
     let repositoryHead = try #require(
-      try await f.service.git.oid("HEAD", at: record.repositoryURL("repo")))
+      try await f.service.git.oid("HEAD", at: record.repositoryDirectoryURL("repo")))
     let result = await f.service.createGroup(
       "task", branchName: "Main", repositoryIDs: ["repo"], at: f.root)
 
@@ -48,11 +48,14 @@ struct BranchOccupancyTests {
       #expect(saved == record)
     }
     #expect(try await f.service.git.oid("HEAD", at: f.root) == rootHead)
-    #expect(try await f.service.git.oid("HEAD", at: record.repositoryURL("repo")) == repositoryHead)
+    #expect(
+      try await f.service.git.oid("HEAD", at: record.repositoryDirectoryURL("repo"))
+        == repositoryHead)
     #expect(
       try await f.service.git.registrations(at: f.root).count
         == (!caseSensitive && kind == "member" ? 2 : 1))
-    #expect(try await f.service.git.registrations(at: record.repositoryURL("repo")).count == 1)
+    #expect(
+      try await f.service.git.registrations(at: record.repositoryDirectoryURL("repo")).count == 1)
   }
 
   @Test(arguments: ["root", "member"], [false, true])
@@ -63,7 +66,7 @@ struct BranchOccupancyTests {
     defer { f.remove() }
     try await f.prepareGroup("feature", repositoryIDs: ["repo"])
     let record = try f.service.store.load(f.root)
-    let repository = kind == "root" ? f.root : record.repositoryURL("repo")
+    let repository = kind == "root" ? f.root : record.repositoryDirectoryURL("repo")
     let worktree = kind == "root" ? record.groupURL("feature") : record.memberURL("feature", "repo")
     let volume = try repository.resourceValues(forKeys: [.volumeSupportsCaseSensitiveNamesKey])
     guard let caseSensitive = volume.volumeSupportsCaseSensitiveNames else {
@@ -72,7 +75,7 @@ struct BranchOccupancyTests {
     }
     let rootHead = try #require(try await f.service.git.oid("HEAD", at: f.root))
     let repositoryHead = try #require(
-      try await f.service.git.oid("HEAD", at: record.repositoryURL("repo")))
+      try await f.service.git.oid("HEAD", at: record.repositoryDirectoryURL("repo")))
     if caseSensitive {
       let oid = try #require(try await f.service.git.oid("HEAD", at: worktree))
       _ = try await f.service.git.run(["update-ref", "refs/heads/Main", oid], at: repository)
@@ -108,8 +111,10 @@ struct BranchOccupancyTests {
     #expect(try await f.service.git.oid("refs/heads/main", at: f.root) == rootHead)
     #expect(try await f.service.git.oid("HEAD", at: f.root) == rootHead)
     #expect(
-      try await f.service.git.oid("refs/heads/main", at: record.repositoryURL("repo"))
+      try await f.service.git.oid("refs/heads/main", at: record.repositoryDirectoryURL("repo"))
         == repositoryHead)
-    #expect(try await f.service.git.oid("HEAD", at: record.repositoryURL("repo")) == repositoryHead)
+    #expect(
+      try await f.service.git.oid("HEAD", at: record.repositoryDirectoryURL("repo"))
+        == repositoryHead)
   }
 }

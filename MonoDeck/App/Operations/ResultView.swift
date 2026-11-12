@@ -50,7 +50,7 @@ struct ResultView: View {
               }
             }
             if isUpdate, !items.isEmpty {
-              RepositoryUpdateResultsView(
+              UpdateResultsView(
                 text: text, items: items, workspace: result.workspace,
                 isWorktreeUpdate: isWorktreeUpdate)
             } else {

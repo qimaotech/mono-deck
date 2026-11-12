@@ -63,7 +63,7 @@ struct WorktreeUpdateTests {
     try await fixture.prepareGroup("feature", repositoryIDs: ["repo"])
     let record = try fixture.service.store.load(fixture.root)
     let git = fixture.service.git
-    let main = record.repositoryURL("repo")
+    let main = record.repositoryDirectoryURL("repo")
     let member = record.memberURL("feature", "repo")
     let original = try #require(await git.oid("HEAD", at: main))
     let base =
@@ -141,8 +141,8 @@ struct WorktreeUpdateTests {
     let ids = (0..<7).map { "repo\($0)" }
     for id in ids {
       let repository = Repository(url: "https://mono-deck-test.invalid/\(id).git")
-      let path = record.repositoryURL(id)
-      try FileManager.default.copyItem(at: record.repositoryURL("repo"), to: path)
+      let path = record.repositoryDirectoryURL(id)
+      try FileManager.default.copyItem(at: record.repositoryDirectoryURL("repo"), to: path)
       _ = try await git.run(["config", "remote.origin.url", repository.url], at: path)
       record.repositories.append(repository)
     }
@@ -153,7 +153,7 @@ struct WorktreeUpdateTests {
     try await fixture.prepareGroup("b", repositoryIDs: [ids[0]])
     _ = try await git.run(["commit", "--allow-empty", "-m", "workspace update"], at: fixture.root)
     for id in ids {
-      let path = record.repositoryURL(id)
+      let path = record.repositoryDirectoryURL(id)
       let base = try await commit(at: path, git: git)
       try await setDefault("main", to: base, at: path, git: git)
     }
@@ -237,7 +237,7 @@ struct WorktreeUpdateTests {
     try await fixture.prepareGroup("feature", repositoryIDs: ["repo"])
     let record = try fixture.service.store.load(fixture.root)
     let git = fixture.service.git
-    let main = record.repositoryURL("repo")
+    let main = record.repositoryDirectoryURL("repo")
     let member = record.memberURL("feature", "repo")
     let group = record.groupURL("feature")
     let isRoot = scenario == "reserved-member-path"

@@ -170,7 +170,7 @@ import Testing
     defer { fixture.remove() }
     let record = try fixture.service.store.load(fixture.root)
     let resource = Resource.repository("repo")
-    let path = record.repositoryURL("repo")
+    let path = record.repositoryDirectoryURL("repo")
     let blocked = fixture.directory.appending(path: "followup-blocked")
     let started = fixture.directory.appending(path: "followup-started")
     let hook = fixture.directory.appending(path: "followup-fsmonitor")

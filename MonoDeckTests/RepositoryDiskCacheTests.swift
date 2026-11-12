@@ -8,7 +8,7 @@ struct RepositoryDiskCacheTests {
     let f = try await Fixture(template: .emptyWorkspace)
     defer { f.remove() }
     let context = try await prepareContext(f)
-    let identity = try RepositoryCacheIdentity(context: context)
+    let identity = try ResourceDetailCacheIdentity(context: context)
     let directory = f.directory.appending(path: "cache")
     let observedAt = Date(timeIntervalSince1970: 1_800_000_000)
     let detail = sampleDetail(observedAt: observedAt)
@@ -40,7 +40,7 @@ struct RepositoryDiskCacheTests {
   func unreadableCacheEntriesBecomeMisses(_ kind: String) async throws {
     let f = try await Fixture(template: .emptyWorkspace)
     defer { f.remove() }
-    let identity = try RepositoryCacheIdentity(context: await prepareContext(f))
+    let identity = try ResourceDetailCacheIdentity(context: await prepareContext(f))
     let directory = f.directory.appending(path: "cache")
     let cache = RepositoryDiskCache(directory: directory)
     await cache.saveDetail(sampleDetail(), for: identity)
@@ -63,7 +63,7 @@ struct RepositoryDiskCacheTests {
   @Test func directoryConflictsAndOversizedEntriesDoNotPreventLaterReads() async throws {
     let f = try await Fixture(template: .emptyWorkspace)
     defer { f.remove() }
-    let identity = try RepositoryCacheIdentity(context: await prepareContext(f))
+    let identity = try ResourceDetailCacheIdentity(context: await prepareContext(f))
     let conflict = f.directory.appending(path: "cache-conflict")
     try Data("existing file".utf8).write(to: conflict)
     let unavailable = RepositoryDiskCache(directory: conflict)
@@ -76,7 +76,7 @@ struct RepositoryDiskCacheTests {
     let directory = f.directory.appending(path: "cache")
     let bounded = RepositoryDiskCache(directory: directory, maximumEntryBytes: 8_192)
     var oversized = sampleDetail()
-    oversized = RepositoryDetailSnapshot(
+    oversized = GitDetailSnapshot(
       summary: oversized.summary, changes: oversized.changes,
       uniqueCommits: [
         .init(
@@ -98,7 +98,7 @@ struct RepositoryDiskCacheTests {
   {
     let f = try await Fixture(template: .emptyWorkspace)
     defer { f.remove() }
-    let identity = try RepositoryCacheIdentity(context: await prepareContext(f))
+    let identity = try ResourceDetailCacheIdentity(context: await prepareContext(f))
     let cache = RepositoryDiskCache(directory: f.directory.appending(path: "cache"))
     let successful = sampleDetail()
     await cache.saveDetail(successful, for: identity)
@@ -106,13 +106,13 @@ struct RepositoryDiskCacheTests {
     var unavailableBase = successful.summary
     unavailableBase.baseError = "Base is temporarily unavailable"
     for summary in [unavailableBase, successful.summary] {
-      let incomplete = RepositoryDetailSnapshot(
+      let incomplete = GitDetailSnapshot(
         summary: summary, changes: [], uniqueCommits: nil, behindCommits: [], observedAt: Date())
       await cache.saveDetail(incomplete, for: identity)
       await cache.flush()
       #expect(await cache.loadDetail(for: identity)?.changes == successful.changes)
     }
-    let local = RepositoryDetailSnapshot(
+    let local = GitDetailSnapshot(
       summary: .init(head: "local", headOID: String(repeating: "c", count: 40), hasRemotes: false),
       changes: [], uniqueCommits: [], behindCommits: nil, observedAt: Date())
     await cache.saveDetail(local, for: identity)
@@ -125,7 +125,7 @@ struct RepositoryDiskCacheTests {
   @Test func cacheEntriesNeverFollowSymlinksForReadsOrWrites() async throws {
     let f = try await Fixture(template: .emptyWorkspace)
     defer { f.remove() }
-    let identity = try RepositoryCacheIdentity(context: await prepareContext(f))
+    let identity = try ResourceDetailCacheIdentity(context: await prepareContext(f))
     let directory = f.directory.appending(path: "cache")
     let cache = RepositoryDiskCache(directory: directory)
     await cache.saveDetail(sampleDetail(), for: identity)
@@ -149,7 +149,7 @@ struct RepositoryDiskCacheTests {
   @Test func capacityEvictsLeastRecentlyUsedHistoryAcrossCacheInstances() async throws {
     let f = try await Fixture(template: .emptyWorkspace)
     defer { f.remove() }
-    let identity = try RepositoryCacheIdentity(context: await prepareContext(f))
+    let identity = try ResourceDetailCacheIdentity(context: await prepareContext(f))
     let directory = f.directory.appending(path: "cache")
     let clock = DiskCacheTestClock()
     let first = RepositoryHistoryCacheKey(
@@ -189,8 +189,8 @@ struct RepositoryDiskCacheTests {
     defer { f.remove() }
     let other = try await Fixture(template: .emptyWorkspace)
     defer { other.remove() }
-    let identity = try RepositoryCacheIdentity(context: await prepareContext(f))
-    let otherIdentity = try RepositoryCacheIdentity(context: await prepareContext(other))
+    let identity = try ResourceDetailCacheIdentity(context: await prepareContext(f))
+    let otherIdentity = try ResourceDetailCacheIdentity(context: await prepareContext(other))
     let cache = RepositoryDiskCache(directory: f.directory.appending(path: "cache"))
     let first = RepositoryHistoryCacheKey(
       repository: identity.repository, head: String(repeating: "a", count: 40),
@@ -221,11 +221,11 @@ struct RepositoryDiskCacheTests {
       .group("cached"), in: f.service.store.load(f.root))
   }
 
-  private func sampleDetail(observedAt: Date = Date()) -> RepositoryDetailSnapshot {
+  private func sampleDetail(observedAt: Date = Date()) -> GitDetailSnapshot {
     let summary = GitSummary(
       head: "feature", headOID: String(repeating: "a", count: 40), base: "origin/main",
       baseOID: String(repeating: "b", count: 40))
-    return RepositoryDetailSnapshot(
+    return GitDetailSnapshot(
       summary: summary,
       changes: [
         .init(path: "新目录/new\nname", originalPath: "old\tname", index: "R", workingTree: "M")

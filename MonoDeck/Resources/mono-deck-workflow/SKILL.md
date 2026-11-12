@@ -1,70 +1,61 @@
 ---
 name: mono-deck-workflow
-description: Manage repositories, worktree groups, and group members in a MonoDeck workspace through mono-deck. Use when the user asks to inspect the workspace, add or delete repositories, create or edit groups, or add or delete group members.
+description: Inspect and manage MonoDeck workspaces, repositories, worktree groups, and worktrees with the mono-deck CLI.
 ---
 
 # MonoDeck workspace management
 
-Do not edit this skill's workspace copies of `SKILL.md` or `agents/openai.yaml`: opening or manually reloading the workspace in the App discards their uncommitted working-tree and index changes and synchronizes the bundled content.
-
 ## Domain essentials
 
-- **Workspace / Workspace repository:** The workspace root is the main worktree of the workspace repository, which holds shared documents and workflows. Business repositories and groups are managed under this root.
-- **Main repository:** A registered business repository's main worktree at `repositories/<repository-id>`, separate from the workspace repository. “Main” describes the worktree role, not a branch name.
-- **Worktree Group (group) / Group root worktree:** A task context containing selected members and a root at `worktrees/<group-name>`. The root is the workspace repository's linked worktree, included implicitly; `--repo` selects business repositories only.
-- **Group member / Member worktree:** A business repository's linked worktree at `worktrees/<group-name>/<repository-id>`, identified by group name and repository ID. It shares Git data with its main repository but has its own checkout and index; members are not submodules.
-- **Group name / Initial branch name / Current branch:** The group name determines identity and directory. The initial branch name defaults to the group name or is set with `group create --branch`; it is read-only after creation and also applies to future members. Each worktree can later switch branches independently without changing that setting; deletion targets its actual current branch.
-- **Workspace record / Git worktree registration:** MonoDeck's private repository and membership metadata is separate from Git's worktree registration and from on-disk files.
+- **Workspace:** The shared files, member repositories, and task worktree groups managed together by MonoDeck. The workspace root is the main worktree of the workspace repository, which holds shared documents and workflows.
+- **Member repository (repository):** A business repository registered with the workspace by remote URL. Its main worktree is at `repositories/<repository-id>`.
+- **Task worktree group (group):** A named task context with one worktree per selected repository. The root at `worktrees/<group-name>` is a linked worktree of the workspace repository and is included automatically.
+- **Task member worktree (member):** A linked worktree of a member repository at `worktrees/<group-name>/<repository-id>`, with its own `HEAD`, index, and working files.
+- **Workspace record / Git worktree registration:** The workspace record stores MonoDeck's repository and membership data. Git worktree registration and directories on disk track separate state.
+- Use **workspace**, **repository**, **worktree group**, and **worktree** in user-facing descriptions. Include the group or path when it clarifies the target.
 
 ## Context and commands
 
-- Start with `mono-deck workspace tree --json` inside the workspace, or add `--workspace <root>` when known. Reuse the tree root's absolute `path` with `--workspace <root> --json` on management calls; group directories are not workspace roots. Consult subcommand `--help` for syntax.
-- Every JSON response uses the version 2 operation-result envelope. The tree is in `data.tree`, with `type`, `path`, and `children`: root `path` is absolute, child paths are relative to their direct parent, and leaves have `children: null`.
-- Tree types are `workspace`, `auxiliary-directory` (`repositories` and `worktrees`), `group`, `main-worktree`, and `linked-worktree`. Registered resources appear when their directories and `.git` entry types exist as expected. Missing, mistyped, or symlink paths are omitted; absence does not imply unregistered, and presence does not certify Git health or ownership.
-- Queries read workspace record snapshots without acquiring the workspace lock, removing record entries, or fetching repositories. `workspace tree` checks directory and `.git` entry types, not child Git health, remotes, or registration ownership; use the relevant details or operation to diagnose those issues. Filesystem checks can observe concurrent changes; refresh the relevant list before management actions when needed.
-- In `repo list --json`, read `resource["repository-id"]` from items with `resource.kind == "repository"`. In `group list --json`, read `resource["group-name"]` from items with `resource.kind == "group"`. The group list also includes member rows. Lists report per-resource status and errors. Pass IDs or names to commands and use `resource.path` to locate the resource relative to the workspace. Repository IDs are URL path basenames without a trailing `.git`, unique ignoring case. `repo add --display-name` sets a label without changing identity.
-- Workspace records and exported YAML use version 2 with optional repository `display-name` and required group `branch-name` and `repository-ids` fields. `created-at` belongs to the local record. The App imports missing repositories and groups and skips matching repositories and same-name groups. Record recovery uses the group root’s current branch, falling back to the group name for detached HEAD. Use the current command and field names.
-- `repo add` prepares clones outside the workspace lock, then rechecks registration and paths under the lock before publishing. Its `maintain-workspace-ignore` plan action covers maintaining and automatically committing the entire workspace `.gitignore` when it differs from HEAD, including pre-existing manual edits. Automatic commits require HEAD to resolve to a local branch.
-- Workspace initialization, repository updates, local scanning, and YAML import/export require the App; do not invent CLI equivalents.
+- Start with `mono-deck workspace tree --json` inside the workspace or add `--workspace <root>`. Use the tree root's absolute `path` as `--workspace <root>` on subsequent calls. Use `--json` for version 2 operation results and subcommand `--help` for syntax.
+- Each node in `data.tree` has `type`, `path`, and `children`. Child paths are relative to their parent. `main-worktree` and `linked-worktree` nodes have `children: null`. `workspace`, `auxiliary-directory` (`repositories` and `worktrees`), and `group` nodes have arrays, including `[]` when empty.
+- Queries read snapshots without taking the workspace lock, editing the record, or fetching. The tree checks directory and `.git` entry types. Missing, mistyped, and symlink paths are omitted even when registered. Use per-resource status or operation checks for Git health, remotes, and ownership. Refresh the relevant list if state may have changed.
+- In `repo list --json`, read `resource["repository-id"]` on `repository` items. In `group list --json`, read `resource["group-name"]` on `group` items, alongside `member` items. Use these IDs and names as arguments and `resource.path` for paths relative to the workspace. Repository IDs come from URL basenames with trailing `.git` removed, are unique ignoring case, and stay the same when `--display-name` is set.
+- The `repo add` plan action `maintain-workspace-ignore` can commit the entire workspace `.gitignore` when it differs from HEAD, including manual edits. Automatic commits require HEAD to resolve to a local branch.
+- Use the App to initialize or recover a workspace, scan local repositories, import or export YAML, update repositories, or update worktrees.
 
 ## Planning and execution
 
-- Every write command accepts `--dry-run`, which takes precedence over `--yes`. It checks local prerequisites without changing workspace resources, cloning, or fetching; later network and file operations can still fail. Success has `status: "success"` and `dry-run: true`, with planned actions in `plan.actions` and deletion targets in `plan.deletions`. Plans are unlocked snapshots, not reservations or completed effects.
-- Without `--dry-run`, non-destructive commands execute immediately. Destructive commands prompt only in an interactive terminal; JSON or non-interactive calls without `--yes` return `confirmation-required` without executing any changes, including additions in a membership replacement.
-- `--yes` authorizes the current command's deletion targets, not an earlier dry run. `group delete <group-name> --yes` determines current targets under the workspace lock and executes without the unlocked risk and local-change preview; use `--dry-run` to preview first. Ownership, target, and current-branch checks still apply. Preview again after a delay, external changes, or `confirmation-changed`.
-- Run a destructive command with `--yes` only when the user has authorized the current scope and risks. Reuse authorization while both remain unchanged; obtain approval for a revised scope. Do not treat the flag itself as authorization.
+- Every write accepts `--dry-run`, which takes precedence over `--yes` and checks local prerequisites without mutating resources, cloning, or fetching. A successful dry run has `status: "success"` and `dry-run: true`. Read `plan.actions` and `plan.deletions` as an unlocked snapshot of planned changes.
+- For deletions, review the paths, current branches, risks, and warnings in `plan.deletions` from `--dry-run`. Preview again after a delay, external changes, or `confirmation-changed`. Pass `--yes` only when the user has authorized the current targets and risks. Reuse that authorization while the scope and risks match.
+- The CLI executes commands with no deletion targets immediately after validation. Without `--yes`, it prompts for deletions in interactive mode and returns `confirmation-required` for JSON or non-interactive calls before applying any changes, including additions in the same edit. `group delete <group-name> --yes` skips the risk and local-change preview and resolves current targets under the lock. Ownership, target, and current-branch checks still apply.
 
 ## Creating groups
 
-- Preserve a valid user-supplied group name; otherwise propose `<type>-<task>` with a prefix such as `feature-` or `fix-` and a concise task description in the user's language.
-- Group names must be single directory names and valid Git branch names, without `/` or whitespace. The initial branch name is separate and permits valid Git slashes, such as `feature/checkout`. Explain invalid input and confirm an alternative; do not silently rewrite either name.
-- Present the group name, resolved initial branch name, workspace root, and complete member repository IDs, and wait for explicit confirmation before `group create <group-name> [--branch <branch-name>] --repo <repository-id> [--repo <repository-id> ...]`. Pass `--repo` once per repository ID. Omit `--branch` to use the group name. Reuse confirmation while the names and repository set stay the same.
-- `group create` requires a new group name and at least one member. Creation and member addition check and create each resource in order; later failures keep completed roots and members and leave the rest unprocessed. Extend existing or partially created groups through `group member add`.
-- Creation uses local refs without updating repositories. Group roots reuse an available local branch with the initial branch name or start from workspace HEAD. Members reuse the matching local branch, otherwise start from the locally known matching origin branch or fall back to the locally known remote default branch. Report branch-reuse warnings; do not reset reused branches or claim they include the latest base commits.
+- Use a new group name that is both a single directory name and a valid Git branch name. If the user leaves it open, propose `<type>-<task>` in their language. Explain invalid names and confirm alternatives. `--branch` permits Git branch names with `/` and defaults to the group name. The initial branch setting stays fixed and applies to future members even after a worktree switches branches.
+- Confirm the workspace root, group name, initial branch, and repository IDs before running `group create <group-name> [--branch <branch-name>] --repo <repository-id> [--repo <repository-id> ...]`. Reuse confirmation for the same inputs. Pass one `--repo` per repository ID, with at least one repository. Creation and member addition process resources in order. Use `group member add` to extend or complete an existing group.
+- Creation uses local refs. Group roots reuse the matching available local branch or start from workspace HEAD. Members try the matching local branch, the locally known matching `origin` branch, then the locally recorded remote default branch. Report branch-reuse warnings and preserve reused branches.
 
 ## Editing membership
 
-- `group edit <group-name> --repo <repository-id> [--repo <repository-id> ...]` replaces the complete member set. Pass `--repo` once per repository ID. The command manages membership only and deletes omitted members with their current local branches. Preview and review the entire replacement before authorizing deletions.
-- `group edit <group-name> --clear-members` deletes all members while keeping the group root. It cannot be combined with `--repo`.
-- `group member add <group-name> <repository-id>...` adds missing members using the saved initial branch name and preserves the rest. Membership edits also use that value for additions; neither command accepts a branch override. `group member delete <group-name> <repository-id>...` deletes only the named member worktrees and their current local branches.
+- `group edit <group-name> --repo <repository-id> [--repo <repository-id> ...]` takes the full desired repository set and deletes omitted worktrees and their current local branches. Use `group edit <group-name> --clear-members` on its own to remove all registered worktrees in the group. Both forms keep the group root and name.
+- `group member add <group-name> <repository-id>...` adds missing worktrees and preserves existing ones. Both it and `group edit` use the saved initial branch for additions. `group member delete <group-name> <repository-id>...` removes the named worktrees and their current local branches.
 
 ## Destructive changes
 
-- `group delete <group-name>` deletes the group root and all members. `repo delete <repository-id>` deletes the repository's managed members, then moves its main repository directory to Trash.
-- Before authorizing deletion, review target paths, current branches, and risks in `--dry-run` output.
-- Unknown local-change status does not mean clean or prevent linked worktree deletion. The preview retains read failures as warnings and allows authorized cleanup when ownership and target checks pass; report those warnings when reviewing the preview.
-- Linked worktree deletion permanently removes its files and current local branch, including ignored files, reused branches, and unmerged commits. Success completes original-path removal, Git deregistration, and current-branch handling; files and disk space may still await best-effort background cleanup. A detached HEAD has no branch to delete.
+- `group delete <group-name>` deletes the group root and all task member worktrees. `repo delete <repository-id>` deletes the member repository's managed task member worktrees and their current local branches, then moves its local clone directory to Trash.
+- Report preview read warnings when local-change status is unknown. Authorized linked worktree cleanup can proceed when ownership and target checks pass.
+- Linked worktree deletion permanently removes its files and current local branch, including ignored files, reused branches, and unmerged commits. A detached HEAD has no branch to delete. Success completes original-path removal, Git deregistration, and branch handling. Physical cleanup and disk space reclamation can continue in the background.
 - When a worktree directory and its Git registration are missing, deletion may only remove the workspace record entry.
 
 ## Results and failures
 
-- Judge completion from stdout's final JSON even on nonzero exit; progress goes to stderr.
-- Report completed and unfinished items, warnings even on success, and observed effects as applied, reverted, or unknown. Cancellation and partial success can retain completed effects.
-- Workspace lock acquisition retries at 500 ms intervals, up to 10 retries per acquisition. Wait for the command to finish instead of launching duplicate writes. On `workspace-lock-timeout`, resolve contention and refresh current state and the plan before retrying.
-- Stop dependent actions on unavailable resources; unrelated resources remain usable. For `cleanup-failed` or `save-outcome-unknown`, report causes and retained paths or unknown effects, leaving that data untouched. Resolve causes before retrying; do not promise restoration, automatic repair, or import continuation.
-- Manage through the CLI; do not edit private MonoDeck records or bypass rejections with Git or shell deletion.
+- Judge completion from the final JSON on stdout, even on nonzero exit. Progress goes to stderr.
+- Report completed and unfinished items, warnings even on success, and effects as applied, reverted, or unknown. Cancellation or partial failure can leave completed changes in place.
+- Wait for the active write to finish. On `workspace-lock-timeout`, resolve contention and refresh the state and plan before retrying.
+- Stop actions that depend on unavailable resources. For `cleanup-failed` or `save-outcome-unknown`, report causes, retained paths, and unknown effects. Preserve retained data and resolve the cause before retrying. Base recovery claims on observed effects.
+- Use the CLI for managed changes. Keep private workspace records read-only and resolve CLI rejections through supported MonoDeck operations.
 
 ## Custom workflows
 
-- For workspace-specific conventions or steps, recommend a separate `.agents/skills/mono-deck-workflow-addon/SKILL.md` under the workspace root.
-- Uncommitted addon changes are not copied into new groups; existing groups do not synchronize automatically. Commit custom workflow changes only with the user's authorization.
+- Put workspace-specific instructions in `.agents/skills/mono-deck-workflow-addon/SKILL.md` under the workspace root. Opening or manually reloading the workspace replaces local edits to the bundled `SKILL.md` and `agents/openai.yaml` in both the working tree and index.
+- A new group includes addon content from its group root commit. Existing groups keep their own checkout. Commit custom workflow changes only with the user's authorization.

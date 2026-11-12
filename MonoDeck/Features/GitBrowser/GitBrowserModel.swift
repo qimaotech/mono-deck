@@ -60,7 +60,7 @@ final class GitBrowserModel {
   @ObservationIgnored private var resources: [Resource: ResourceCacheEntry] = [:]
   private var sidebarStates: [Resource: SidebarState] = [:]
   private var histories: [RepositoryHistoryCacheKey: HistoryCacheEntry] = [:]
-  private var pendingDetailInvalidations = Set<RepositoryCacheIdentity>()
+  private var pendingDetailInvalidations = Set<ResourceDetailCacheIdentity>()
   private var historyUse = 0
   private var clearedHistoryStates:
     [RepositoryCacheRepositoryIdentity: RepositoryHistoryCacheState] = [:]
@@ -654,7 +654,7 @@ final class GitBrowserModel {
         revalidateConfiguration: revalidatingConfiguration)
       guard isValid() else { return nil }
       diagnostics?.record("detail.prepare", duration: started.duration(to: .now))
-      let identity = try RepositoryCacheIdentity(context: context)
+      let identity = try ResourceDetailCacheIdentity(context: context)
       result.identity = identity
       if resources[resource]?.identity != identity { resources[resource]?.lastPresentedError = nil }
       if let previous = resources[resource]?.identity, previous != identity {
@@ -750,7 +750,7 @@ final class GitBrowserModel {
   }
 
   private func readHistory(
-    _ initial: GitBrowserState, context: ResourceReadContext, identity: RepositoryCacheIdentity,
+    _ initial: GitBrowserState, context: ResourceReadContext, identity: ResourceDetailCacheIdentity,
     isValid: () -> Bool
   ) async -> (detail: GitBrowserState, needsRefresh: Bool) {
     let started = ContinuousClock.now
@@ -966,8 +966,10 @@ final class GitBrowserModel {
   private func statusIdentity(for resource: Resource) -> [PathStamp]? {
     guard let workspace else { return nil }
     let path = workspace.rootURL.appending(path: resource.path)
-    let main = resource.repositoryID.map(workspace.repositoryURL) ?? workspace.rootURL
-    return try? [path, path.appending(path: ".git"), main.appending(path: ".git")].map(
+    let mainWorktreeURL =
+      resource.repositoryID.map(workspace.repositoryDirectoryURL)
+      ?? workspace.rootURL
+    return try? [path, path.appending(path: ".git"), mainWorktreeURL.appending(path: ".git")].map(
       PathStamp.init)
   }
 
@@ -1027,7 +1029,7 @@ final class GitBrowserModel {
   private struct DetailReadResult {
     var detail: GitBrowserState
     var context: ResourceReadContext?
-    var identity: RepositoryCacheIdentity?
+    var identity: ResourceDetailCacheIdentity?
     var discardsSavedDetail = false
     var needsRefresh = false
   }
@@ -1062,8 +1064,8 @@ final class GitBrowserModel {
     var detailInvalidated = true
     var detailRevision = 0
     var statusIdentity: [PathStamp]?
-    var lastSuccessfulDetail: RepositoryDetailSnapshot?
-    var identity: RepositoryCacheIdentity?
+    var lastSuccessfulDetail: GitDetailSnapshot?
+    var identity: ResourceDetailCacheIdentity?
     var invalidated = true
     var lastPresentedError: GitBrowserFailure.Signature?
   }
@@ -1131,7 +1133,7 @@ struct GitBrowserState: Sendable {
 }
 
 extension GitBrowserState {
-  fileprivate init(_ snapshot: RepositoryDetailSnapshot) {
+  fileprivate init(_ snapshot: GitDetailSnapshot) {
     summary = snapshot.summary
     changes = snapshot.changes
     uniqueCommits = snapshot.uniqueCommits
@@ -1145,7 +1147,7 @@ extension GitBrowserState {
       }
   }
 
-  fileprivate func successfulSnapshot(observedAt: Date) -> RepositoryDetailSnapshot? {
+  fileprivate func successfulSnapshot(observedAt: Date) -> GitDetailSnapshot? {
     guard readError == nil, let summary, let changes,
       !summary.hasRemotes
         || (summary.baseOID != nil && uniqueCommits != nil && behindCommits != nil)

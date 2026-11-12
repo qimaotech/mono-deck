@@ -4,7 +4,7 @@ import MonoDeckCore
 
 struct Repo: AsyncParsableCommand {
   static let configuration = CommandConfiguration(
-    abstract: "Manage registered business repositories.",
+    abstract: "Manage registered repositories.",
     subcommands: [List.self, Add.self, Delete.self])
   struct List: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
@@ -47,7 +47,9 @@ struct Repo: AsyncParsableCommand {
   }
   struct Delete: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-      abstract: "Delete managed members and move the main repository to Trash.")
+      abstract:
+        "Delete the repository's managed worktrees in groups and their current local branches, then move its local clone to Trash."
+    )
     @OptionGroup var options: Options
     @OptionGroup var mutation: MutationOptions
     @Argument(

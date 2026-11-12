@@ -349,7 +349,7 @@ extension WorkspaceService {
         }
       } else {
         let items = await createImportedGroup(
-          name, branchName: group.branchName, members: group.repositoryIDs, record: &record,
+          name, branchName: group.branchName, repositoryIDs: group.repositoryIDs, record: &record,
           progress: progress)
         result.items += items
         stopped = items.contains { $0.status == .failed || $0.status == .cancelled }

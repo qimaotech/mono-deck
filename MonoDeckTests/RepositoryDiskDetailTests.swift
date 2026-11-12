@@ -12,7 +12,7 @@ import Testing
     let defaults = try preferences(fixture)
     defer { defaults.removePersistentDomain(forName: fixture.directory.lastPathComponent) }
     let resource = Resource.repository("repo")
-    let path = record.repositoryURL("repo")
+    let path = record.repositoryDirectoryURL("repo")
     let reader = DiskDetailHistoryReader(git: fixture.service.git)
     let cache = RepositoryDiskCache(directory: fixture.directory.appending(path: "detail-cache"))
     let details = GitBrowserModel(
@@ -28,7 +28,7 @@ import Testing
       await details.snapshotPreloadTask?.value
       await details.flushCache()
       let context = try await fixture.service.prepareResourceRead(resource, in: record)
-      let identity = try RepositoryCacheIdentity(context: context)
+      let identity = try ResourceDetailCacheIdentity(context: context)
       let original = try #require(await cache.loadDetail(for: identity)?.summary.headOID)
       _ = try await fixture.service.git.run(
         ["commit", "--allow-empty", "-m", "invalidate background history"], at: path)
@@ -99,7 +99,7 @@ import Testing
       await details.detailTask?.value
       await details.flushCache()
       let context = try await fixture.service.prepareResourceRead(resource, in: record)
-      #expect(await cache.loadDetail(for: try RepositoryCacheIdentity(context: context)) == nil)
+      #expect(await cache.loadDetail(for: try ResourceDetailCacheIdentity(context: context)) == nil)
       #expect(details.pendingFailure == nil)
       if case .collapse = cancellation {
         details.setPreloadScope(in: record, including: [resource])
@@ -200,7 +200,8 @@ import Testing
     let directory = fixture.directory.appending(path: "detail-cache")
     let initialCache = RepositoryDiskCache(directory: directory)
     _ = try await fixture.service.git.run(
-      ["commit", "--allow-empty", "-m", "preloaded head"], at: record.repositoryURL("repo"))
+      ["commit", "--allow-empty", "-m", "preloaded head"], at: record.repositoryDirectoryURL("repo")
+    )
     let first = GitBrowserModel(service: fixture.service, defaults: defaults, cache: initialCache)
     first.setPreloadScope(in: record, including: [.repository("repo")])
     first.drainPreload()
@@ -213,12 +214,14 @@ import Testing
     first.stop()
     await first.waitForReads()
     await first.flushCache()
-    try Data("fresh".utf8).write(to: record.repositoryURL("repo").appending(path: "fresh.txt"))
+    try Data("fresh".utf8).write(
+      to: record.repositoryDirectoryURL("repo").appending(path: "fresh.txt"))
     let reader = DiskDetailHistoryReader(git: fixture.service.git)
     reader.failure = MonoDeckError("unexpected-history-read", "History should come from disk.")
     let reopenedCache = RepositoryDiskCache(directory: directory)
     let context = try await fixture.service.prepareResourceRead(.repository("repo"), in: record)
-    let saved = await reopenedCache.loadDetail(for: try RepositoryCacheIdentity(context: context))
+    let saved = await reopenedCache.loadDetail(
+      for: try ResourceDetailCacheIdentity(context: context))
     #expect(
       saved?.uniqueCommits?.map(\.subject) == ["preloaded head"] && saved?.changes.isEmpty == true)
     let reopened = GitBrowserModel(
@@ -254,7 +257,7 @@ import Testing
     await first.waitForReads()
     await first.flushCache()
 
-    let path = record.repositoryURL("repo")
+    let path = record.repositoryDirectoryURL("repo")
     _ = try await fixture.service.git.run(["commit", "--allow-empty", "-m", "new head"], at: path)
     let updated = try #require(await fixture.service.git.oid("HEAD", at: path))
     try Data("new".utf8).write(to: path.appending(path: "new.txt"))
@@ -296,7 +299,7 @@ import Testing
     let record = try fixture.service.store.load(fixture.root)
     let defaults = try preferences(fixture)
     defer { defaults.removePersistentDomain(forName: fixture.directory.lastPathComponent) }
-    let path = record.repositoryURL("repo")
+    let path = record.repositoryDirectoryURL("repo")
     _ = try await fixture.service.git.run(["commit", "--allow-empty", "-m", "old head"], at: path)
     let reader = DiskDetailHistoryReader(git: fixture.service.git)
     let cache = RepositoryDiskCache(directory: fixture.directory.appending(path: "detail-cache"))
@@ -323,7 +326,7 @@ import Testing
     #expect(details.state(for: .repository("repo"))?.dirty == true)
     let context = try await fixture.service.prepareResourceRead(.repository("repo"), in: record)
     await details.flushCache()
-    let stored = await cache.loadDetail(for: try RepositoryCacheIdentity(context: context))
+    let stored = await cache.loadDetail(for: try ResourceDetailCacheIdentity(context: context))
     #expect(stored?.summary.headOID == original)
 
     reader.failure = nil
@@ -382,7 +385,7 @@ import Testing
     await details.detailTask?.value
     #expect(details.pendingFailure == nil && details.detail.uniqueCommitsError == nil)
 
-    let path = record.repositoryURL("repo")
+    let path = record.repositoryDirectoryURL("repo")
     _ = try await fixture.service.git.run(
       ["commit", "--allow-empty", "-m", "invalidate history"], at: path)
     reader.failure = MonoDeckError("other-failure", "Another error.")
@@ -448,7 +451,7 @@ import Testing
     let record = try fixture.service.store.load(fixture.root)
     let defaults = try preferences(fixture)
     defer { defaults.removePersistentDomain(forName: fixture.directory.lastPathComponent) }
-    let path = record.repositoryURL("repo")
+    let path = record.repositoryDirectoryURL("repo")
     let head = try #require(await fixture.service.git.oid("HEAD", at: path))
     let cache = SuspendedDetailCache(
       snapshot: .init(
@@ -494,7 +497,7 @@ import Testing
     details.refresh(.repository("repo"), in: record)
     await details.detailTask?.value
     try #require(details.detail.summary != nil)
-    let gitDirectory = record.repositoryURL("repo").appending(path: ".git")
+    let gitDirectory = record.repositoryDirectoryURL("repo").appending(path: ".git")
     try FileManager.default.moveItem(
       at: gitDirectory, to: fixture.directory.appending(path: "original-git"))
     try FileManager.default.createDirectory(at: gitDirectory, withIntermediateDirectories: false)
@@ -512,7 +515,7 @@ import Testing
     let record = try fixture.service.store.load(fixture.root)
     let defaults = try preferences(fixture)
     defer { defaults.removePersistentDomain(forName: fixture.directory.lastPathComponent) }
-    let path = record.repositoryURL("repo")
+    let path = record.repositoryDirectoryURL("repo")
     let head = try #require(await fixture.service.git.oid("HEAD", at: path))
     let cache = SuspendedDetailCache(
       snapshot: .init(
@@ -551,7 +554,7 @@ import Testing
     let record = try fixture.service.store.load(fixture.root)
     let defaults = try preferences(fixture)
     defer { defaults.removePersistentDomain(forName: fixture.directory.lastPathComponent) }
-    let path = record.repositoryURL("repo")
+    let path = record.repositoryDirectoryURL("repo")
     let base = try #require(await fixture.service.git.oid("HEAD", at: path))
     _ = try await fixture.service.git.run(["commit", "--allow-empty", "-m", "local"], at: path)
     let head = try #require(await fixture.service.git.oid("HEAD", at: path))
@@ -566,7 +569,7 @@ import Testing
       details.refresh(.repository("repo"), in: record)
       await details.detailTask?.value
       let context = try await fixture.service.prepareResourceRead(.repository("repo"), in: record)
-      let identity = try RepositoryCacheIdentity(context: context)
+      let identity = try ResourceDetailCacheIdentity(context: context)
       let key = RepositoryHistoryCacheKey(repository: identity.repository, head: head, base: base)
       let stored = await cache.loadHistory(for: key)
       #expect(reader.calls == 2 && stored != nil)
@@ -662,14 +665,14 @@ private final class DiskDetailGitCheckGate: @unchecked Sendable {
 }
 
 private actor SuspendedDetailCache: RepositoryDetailCaching {
-  let snapshot: RepositoryDetailSnapshot
+  let snapshot: GitDetailSnapshot
   private var continuation: CheckedContinuation<Void, Never>?
   private(set) var started = false
   private(set) var writes = 0
 
-  init(snapshot: RepositoryDetailSnapshot) { self.snapshot = snapshot }
+  init(snapshot: GitDetailSnapshot) { self.snapshot = snapshot }
 
-  func loadDetail(for identity: RepositoryCacheIdentity) async -> RepositoryDetailSnapshot? {
+  func loadDetail(for identity: ResourceDetailCacheIdentity) async -> GitDetailSnapshot? {
     await withCheckedContinuation { continuation in
       self.continuation = continuation
       started = true
@@ -680,13 +683,13 @@ private actor SuspendedDetailCache: RepositoryDetailCaching {
     continuation?.resume()
     continuation = nil
   }
-  func saveDetail(_ value: RepositoryDetailSnapshot, for identity: RepositoryCacheIdentity) async {
+  func saveDetail(_ value: GitDetailSnapshot, for identity: ResourceDetailCacheIdentity) async {
     writes += 1
   }
   func loadHistory(for key: RepositoryHistoryCacheKey) async -> RepositoryHistorySnapshot? { nil }
   func saveHistory(_ value: RepositoryHistorySnapshot, for key: RepositoryHistoryCacheKey) async {
     writes += 1
   }
-  func invalidateDetail(for identity: RepositoryCacheIdentity) async {}
+  func invalidateDetail(for identity: ResourceDetailCacheIdentity) async {}
   func invalidateHistory(for repository: RepositoryCacheRepositoryIdentity) async {}
 }
