@@ -1,0 +1,153 @@
+name: Release
+run-name: Release · ${{ github.ref_name }}
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate release tag and changelog
+        run: python3 script/release_notes.py "$GITHUB_REF_NAME" > /dev/null
+
+  package:
+    name: Package
+    needs: validate
+    runs-on: macos-26
+    timeout-minutes: 30
+    outputs:
+      dmg_name: ${{ steps.package.outputs.dmg_name }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Show toolchain
+        run: |
+          echo "MONO_DECK_DERIVED_DATA_PATH=$RUNNER_TEMP/DerivedData" >> "$GITHUB_ENV"
+          xcodebuild -version
+          sw_vers
+
+      - name: Install Task
+        uses: go-task/setup-task@a00fbb05ce67b35648be3c78cbc9fd85354c757e # v2.2.0
+        with:
+          version: '3.48.0'
+
+      - name: Restore Swift packages
+        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with: &package_cache
+          path: ${{ runner.temp }}/DerivedData/SourcePackages
+          key: ${{ runner.os }}-${{ runner.arch }}-macos-26-swiftpm-${{ hashFiles('MonoDeck.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+
+      - name: Build and package arm64 app
+        id: package
+        env:
+          MONO_DECK_PACKAGE_DIR: ${{ runner.temp }}/package
+        run: task package
+
+      - name: Upload app
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: ${{ steps.package.outputs.dmg_path }}
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+
+  test:
+    name: Release Test
+    needs: validate
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Show toolchain
+        run: |
+          echo "MONO_DECK_DERIVED_DATA_PATH=$RUNNER_TEMP/DerivedData" >> "$GITHUB_ENV"
+          xcodebuild -version
+          sw_vers
+
+      - name: Restore Swift packages
+        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with: *package_cache
+
+      - name: Install Task
+        uses: go-task/setup-task@a00fbb05ce67b35648be3c78cbc9fd85354c757e # v2.2.0
+        with:
+          version: '3.48.0'
+
+      - name: Run tests
+        id: tests
+        run: task test -- -resultBundlePath "$RUNNER_TEMP/TestResults.xcresult"
+
+      - name: Upload failed test results
+        if: failure() && steps.tests.outcome == 'failure'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-results
+          path: ${{ runner.temp }}/TestResults.xcresult
+          if-no-files-found: warn
+          retention-days: 14
+
+  publish:
+    name: Publish
+    needs: [package, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Prepare release notes
+        run: |
+          python3 script/release_notes.py "$GITHUB_REF_NAME" > "$RUNNER_TEMP/release-notes.md"
+          cat >> "$RUNNER_TEMP/release-notes.md" <<'EOF'
+
+          ## Installation
+
+          Requires Apple Silicon (arm64) and macOS 26.5 or later. The DMG contains an ad hoc-signed `MonoDeck.app` bundle without a Developer ID signature or Apple notarization.
+          EOF
+
+      - name: Download DMG
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.package.outputs.dmg_name }}
+          path: package
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DMG_NAME: ${{ needs.package.outputs.dmg_name }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "package/$DMG_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file "$RUNNER_TEMP/release-notes.md"

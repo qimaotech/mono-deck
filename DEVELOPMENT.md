@@ -52,7 +52,7 @@ Run these commands from the repository root with a full Xcode installation, incl
 
 Use `task format` to format all Swift source directories, or `task format -- <path>` to format a specific file or directory. Both use the default `swift-format` settings from the selected Xcode toolchain.
 
-Run `task format:check` to check Swift files in `MonoDeck`, `MonoDeckCore`, `MonoDeckCLI`, `MonoDeckTests`, and `script`. On pull requests, the `build` job checks formatting before packaging, and the `Test` job runs the suite independently of `build`.
+Run `task format:check` to check Swift files in `MonoDeck`, `MonoDeckCore`, `MonoDeckCLI`, `MonoDeckTests`, and `script`. The `Format` job runs the same check on pull requests.
 
 ## Running and diagnosing tests
 
@@ -84,7 +84,8 @@ See [Verification and delivery](AGENTS.md#verification-and-delivery) for test sc
 
 ### CI and package requirements
 
-- Pushing a `v*` tag triggers a CI release. The tag, product version, release notes, and `MonoDeck-<version>-arm64.dmg` must agree. CI publishes only after packaging and tests pass. See [CI](.github/workflows/ci.yml).
+- The [macOS CI workflow](.github/workflows/ci.yml) runs `Format`, `Test`, and `Build` in parallel on pull requests. `Build` uploads the arm64 DMG to the workflow run. To run CI manually, select `all`, `test`, or `build` in the Actions tab. The default is `all`.
+- Push a `v*` tag to the upstream repository to trigger the [Release workflow](.github/workflows/release.yml). It validates the tag against the product version and changelog, then packages the app and tests the tagged commit in parallel. When both jobs succeed, it publishes `MonoDeck-<version>-arm64.dmg` to GitHub Releases.
 - The update check queries GitHub's latest release and accepts only newer stable releases. Automatic installation requires a valid SHA-256 digest for the asset and verifies the downloaded file's size and digest. See [AppUpdateService](MonoDeckCore/Infrastructure/AppUpdateService.swift) and [AppUpdateInstaller](MonoDeckCore/Infrastructure/AppUpdateInstaller.swift).
 
 ## Maintaining documentation and prompts

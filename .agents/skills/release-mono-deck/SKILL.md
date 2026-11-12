@@ -5,7 +5,7 @@ description: Prepare a local MonoDeck release commit and annotated tag. Runs onl
 
 # Release MonoDeck
 
-Run from the MonoDeck source repository root. Review `Version.xcconfig` and `.github/workflows/ci.yml`. A request to run the full release authorizes staging and committing only `Version.xcconfig` and `CHANGELOG.md` and creating the local tag.
+Run from the MonoDeck source repository root. Review `Version.xcconfig` and `.github/workflows/release.yml`. A request to run the full release authorizes staging and committing only `Version.xcconfig` and `CHANGELOG.md` and creating the local tag.
 
 ## 1. Check the working tree and resume state
 
