@@ -5,7 +5,7 @@
 ### Model responsibilities and lifecycle
 
 - Before writing, pause related reads and wait for cancellation to finish so reads and writes cannot overlap. When switching workspaces or quitting, cancel tasks tied to the current context as needed and wait for cleanup to prevent stale results from being published. See [WorkspaceModel](MonoDeck/Features/Workspace/WorkspaceModel.swift) and [AppModel](MonoDeck/App/AppModel.swift).
-- Repository addition and worktree group creation forms stay bound to the workspace that was current when they opened. When creating a group, Core revalidates the selected repository identities under the lock to catch stale selections. See [ManagementModel](MonoDeck/Features/Management/ManagementModel.swift) and [WorktreeGroupService](MonoDeckCore/Workflows/WorktreeGroupService.swift).
+- Workspace changes are blocked while a management form or deletion confirmation is open. Repository addition and worktree group creation forms stay bound to the workspace that was current when they opened; group editing is dismissed if the workspace changes through internal coordination. When creating a group, Core revalidates the selected repository identities under the lock to catch stale selections. See [ManagementModel](MonoDeck/Features/Management/ManagementModel.swift) and [WorktreeGroupService](MonoDeckCore/Workflows/WorktreeGroupService.swift).
 
 ### Git reads and caching
 

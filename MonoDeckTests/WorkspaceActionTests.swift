@@ -188,6 +188,65 @@ import Testing
   }
 
   @Test(arguments: [
+    ManagementSheet.add, .importRepositories, .create, .edit, .delete,
+  ])
+  func workspaceChangesWaitForManagementFormsToClose(_ sheet: ManagementSheet) async throws {
+    try await withModel(template: .emptyWorkspace) { model, fixture in
+      let original = try #require(model.workspace.record)
+      let next = fixture.directory.appending(path: "next-workspace")
+      try FileManager.default.createDirectory(at: next, withIntermediateDirectories: false)
+      model.management.sheet = sheet
+      let setup = SetupModel(model: model)
+      #expect(!setup.canSelectWorkspace)
+      setup.selectWorkspace(next)
+      #expect(setup.selectedWorkspace == nil)
+
+      let accepted = model.changeWorkspace(next)
+      await model.operation?.value
+      #expect(!accepted && model.workspace.record == original)
+      #expect(model.management.sheet == sheet && !model.busy)
+      #expect(!PathSafety.exists(next.appending(path: ".git")))
+      #expect(!PathSafety.exists(fixture.service.store.recordURL(next)))
+
+      model.management.sheet = nil
+      model.management.finishDismissal()
+      #expect(setup.canSelectWorkspace)
+      try #require(model.changeWorkspace(next))
+      await model.operation?.value
+      #expect(model.workspace.record?.root == PathSafety.canonical(next).path)
+      #expect(model.presentation.result == nil && !model.busy)
+    }
+  }
+
+  @Test func workspaceContextChangesInvalidateGroupEdits() async throws {
+    let other = try await Fixture(template: .singleRepository)
+    defer { other.remove() }
+    try await other.prepareEmptyGroup("task")
+    let next = try other.service.store.load(other.root)
+
+    try await withModel { model, fixture in
+      try await fixture.prepareEmptyGroup("task")
+      model.workspace.record = try fixture.service.store.load(fixture.root)
+      model.workspace.selection = .group("task")
+      model.management.sheet = .edit
+      try fixture.service.store.save(next)
+
+      try await model.switchTo(other.root, loaded: next)
+      #expect(model.management.sheet == nil)
+      model.management.edit("task", members: ["repo"])
+      await model.management.editPreviewTask?.value
+      await model.operation?.value
+
+      let original = try fixture.service.store.load(fixture.root)
+      let actual = try fixture.service.store.load(other.root)
+      #expect(original.groups["task"]?.repositoryIDs == [])
+      #expect(actual.groups["task"]?.repositoryIDs == [])
+      #expect(!PathSafety.exists(actual.memberURL("task", "repo")))
+      #expect(!model.busy)
+    }
+  }
+
+  @Test(arguments: [
     "missing", "file", "unreadable", "unsearchable", "symlink", "git", "uninstalled", "launch",
   ])
   func externalToolFailuresAreReportedWithoutStartingManagement(_ failure: String) async throws {

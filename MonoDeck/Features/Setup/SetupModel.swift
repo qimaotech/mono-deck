@@ -12,8 +12,7 @@ final class SetupModel {
     initialCheckCompleted && checkedWorkspace == model.defaults.string(forKey: "workspace")
   }
   var canSelectWorkspace: Bool {
-    (!working || cliActivity == .checking) && !settingUp && !model.busy
-      && !model.presentation.quitPending && model.presentation.result == nil
+    (!working || cliActivity == .checking) && !settingUp && model.canChangeWorkspace
   }
   var canContinueSetup: Bool {
     canSelectWorkspace && cliReady && cliActivity == nil && !working && selectedWorkspace != nil

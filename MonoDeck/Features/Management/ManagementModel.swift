@@ -79,7 +79,9 @@ final class ManagementModel {
       }
     }
     if rootChanged, progressPresentation?.scanningRepositories == true { operations.cancel() }
-    if rootChanged, sheet == .delete || sheet == .importRepositories { sheet = nil }
+    if rootChanged, sheet == .edit || sheet == .delete || sheet == .importRepositories {
+      sheet = nil
+    }
   }
 
   func finishDismissal() {
@@ -337,7 +339,7 @@ final class ManagementModel {
       }, select: .group(group), members: members)
   }
   func edit(_ group: String, members: [String]) {
-    guard let root = session.record?.rootURL, session.canManage else { return }
+    guard sheet == .edit, let root = session.record?.rootURL, session.canManage else { return }
     let previous = editPreviewTask
     cancelEditPreview()
     let context = editPreviewGeneration

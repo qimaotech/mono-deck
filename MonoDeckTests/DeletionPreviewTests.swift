@@ -165,8 +165,9 @@ import Testing
               .member(groupName: "other", repositoryID: "repo")
             ])
         default:
+          let keepsEditing = action == "reopen" || action == "selection"
           #expect(
-            model.management.sheet == (action == "cancel" || action == "operation" ? nil : .edit))
+            model.management.sheet == (keepsEditing ? .edit : nil))
           #expect(model.management.pendingEdit == nil && model.management.deletion.isEmpty)
         }
         #expect(try fixture.service.store.load(fixture.root) == record)

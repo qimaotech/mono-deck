@@ -72,7 +72,7 @@ struct SettingsView: View {
                   ? model.text.string(.uiChoose) : model.text.string(.uiChange)
               ) { chooseWorkspace() }
               .accessibilityIdentifier("changeWorkspace").disabled(
-                model.busy || presentingOperation || choosingWorkspace
+                !model.canChangeWorkspace || presentingOperation || choosingWorkspace
               )
               .accessibilityValue(
                 model.openingWorkspace ? model.text.string(.uiOpeningWorkspace) : "")
@@ -175,13 +175,14 @@ struct SettingsView: View {
     }
   }
   private func chooseWorkspace() {
+    guard model.canChangeWorkspace else { return }
     choosingWorkspace = true
     Task {
       defer { choosingWorkspace = false }
       guard
         let url = await FilePanels.directory(
           at: model.workspace.record?.rootURL.deletingLastPathComponent(),
-          prompt: model.text.string(.uiOpen)), !model.busy
+          prompt: model.text.string(.uiOpen)), model.canChangeWorkspace
       else { return }
       openingWorkspaceURL = PathSafety.canonical(url)
     }

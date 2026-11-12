@@ -35,6 +35,9 @@ final class AppModel {
   var progress: OperationProgress? { operations.progress }
   var operation: Task<Void, Never>? { operations.task }
   var hasSavedWorkspace: Bool { defaults.string(forKey: "workspace") != nil }
+  var canChangeWorkspace: Bool {
+    !busy && !presentation.quitPending && management.sheet == nil && presentation.result == nil
+  }
   var showsMainOperationProgress: Bool {
     busy && management.sheet == nil
       && (workspace.isReloading || (presentation.resultHost == .main && !openingWorkspace))
@@ -204,7 +207,7 @@ final class AppModel {
   @discardableResult func changeWorkspace(
     _ url: URL, requireExistingRecord: Bool = false, cancellable: Bool = true
   ) -> Bool {
-    guard !busy, presentation.result == nil else { return false }
+    guard canChangeWorkspace else { return false }
     let root = PathSafety.canonical(url)
     if let record = workspace.record,
       PathSafety.identity(root) == PathSafety.identity(record.rootURL)
@@ -213,7 +216,6 @@ final class AppModel {
     }
     let previousEdit = management.editPreviewTask
     management.cancelEditPreview()
-    if management.sheet == .delete { management.sheet = nil }
     guard let operationID = operations.begin(.workspace, cancellable: cancellable) else {
       return false
     }
