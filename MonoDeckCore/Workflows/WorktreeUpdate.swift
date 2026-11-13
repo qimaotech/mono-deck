@@ -142,7 +142,7 @@ extension WorkspaceService {
     do {
       _ = try await git.run(
         [
-          "-c", "submodule.recurse=false", "merge", "--ff-only", "--no-autostash",
+          "-c", "submodule.recurse=false", "merge", "--ff-only", "--no-squash", "--no-autostash",
           "--no-overwrite-ignore", base.oid,
         ], at: path, cancellable: false)
       guard context.isValid(in: record),

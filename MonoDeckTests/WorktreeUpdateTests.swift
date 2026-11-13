@@ -54,7 +54,7 @@ struct WorktreeUpdateTests {
   }
 
   @Test(arguments: [
-    "behind", "equal", "ahead", "diverged", "dirty", "staged", "untracked",
+    "behind", "squash", "equal", "ahead", "diverged", "dirty", "staged", "untracked",
     "detached", "operation", "missing-base", "invalid-index",
   ])
   func classifiesMemberAndPreservesOtherCheckouts(_ scenario: String) async throws {
@@ -66,8 +66,17 @@ struct WorktreeUpdateTests {
     let main = record.repositoryDirectoryURL("repo")
     let member = record.memberURL("feature", "repo")
     let original = try #require(await git.oid("HEAD", at: main))
-    let base =
-      ["equal", "ahead"].contains(scenario) ? original : try await commit(at: main, git: git)
+    let base: String
+    if scenario == "squash" {
+      try Data("upstream\n".utf8).write(to: main.appending(path: "README"))
+      _ = try await git.run(["commit", "-am", "upstream update"], at: main)
+      base = try #require(await git.oid("HEAD", at: main))
+      _ = try await git.run(["reset", "--hard", original], at: main)
+      _ = try await git.run(["config", "branch.feature.mergeOptions", "--squash"], at: main)
+    } else {
+      base =
+        ["equal", "ahead"].contains(scenario) ? original : try await commit(at: main, git: git)
+    }
     try await setDefault("release/stable", to: base, at: main, git: git)
     if ["ahead", "diverged"].contains(scenario) {
       _ = try await git.run(["commit", "--allow-empty", "-m", "member work"], at: member)
@@ -104,7 +113,7 @@ struct WorktreeUpdateTests {
     #expect(result.items.first?.reasonCode == "working-tree-dirty")
     let item = result.items.first { $0.resource == memberResource }
     switch scenario {
-    case "behind":
+    case "behind", "squash":
       #expect(item?.data?["disposition"] == "updated", "\(result.items)")
       #expect(item?.data?["base"] == "origin/release/stable")
       #expect(item?.effects == [.init("fast-forward", PathSafety.canonical(member).path)])
@@ -123,7 +132,13 @@ struct WorktreeUpdateTests {
       #expect(item?.status == .skipped && item?.reasonCode == reasons[scenario], "\(result.items)")
       #expect(item?.effects.isEmpty == true)
     }
-    #expect(try await git.oid("HEAD", at: member) == (scenario == "behind" ? base : before))
+    let updated = ["behind", "squash"].contains(scenario)
+    #expect(try await git.oid("HEAD", at: member) == (updated ? base : before))
+    if updated { #expect(try await git.changes(at: member).isEmpty) }
+    if scenario == "squash" {
+      #expect(
+        try String(contentsOf: member.appending(path: "README"), encoding: .utf8) == "upstream\n")
+    }
     #expect(try await git.oid("HEAD", at: main) == original)
     if ["dirty", "staged", "untracked"].contains(scenario) {
       let file = member.appending(path: scenario == "untracked" ? "new" : "README")

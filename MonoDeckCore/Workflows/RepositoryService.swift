@@ -455,12 +455,23 @@ extension WorkspaceService {
       _ = try await git.run(
         ["fetch", "--no-recurse-submodules", "origin", "+\(remoteBranch):\(base.text)"], at: path)
       item.effects[item.effects.count - 1].state = "applied"
-      try await validateRepositoryUpdate(context)
+      let target = try await validateRepositoryUpdate(context)
       item.effects.append(.init("fast-forward", path.path, state: "unknown"))
       _ = try await git.run(
-        ["merge", "--ff-only", "--no-autostash", "--no-overwrite-ignore", base.text], at: path)
-      item.effects[item.effects.count - 1].state = "applied"
+        ["merge", "--ff-only", "--no-squash", "--no-autostash", "--no-overwrite-ignore", target],
+        at: path)
+      try context.validateIdentity()
       let after = try await git.oid("HEAD", at: path)
+      if after != target {
+        guard after == before,
+          try await git.run(
+            ["merge-base", "--is-ancestor", target, before], at: path, allowFailure: true
+          ).status == 0
+        else {
+          throw MonoDeckError("repository-changed", .repositoryChangedDuringUpdate)
+        }
+      }
+      item.effects[item.effects.count - 1].state = "applied"
       item.data = ["disposition": before == after ? "up-to-date" : "updated"]
     } catch {
       fail(&item, error)
@@ -482,7 +493,7 @@ extension WorkspaceService {
     return item
   }
 
-  private func validateRepositoryUpdate(_ context: RepositoryUpdateContext) async throws {
+  private func validateRepositoryUpdate(_ context: RepositoryUpdateContext) async throws -> String {
     try checkCancellation()
     try context.validateIdentity()
     let path = context.directory.url
@@ -498,13 +509,14 @@ extension WorkspaceService {
     guard origin.status == 0, origin.text == context.origin,
       state.branch == context.branch,
       base.status == 0, base.text == context.base,
-      try await git.oid(context.base, at: path) != nil,
+      let target = try await git.oid(context.base, at: path),
       state.headOID == context.head
     else {
       throw MonoDeckError("repository-changed", .repositoryChangedDuringUpdate)
     }
     try context.validateIdentity()
     try checkCancellation()
+    return target
   }
 
   private func repositoryUpdateState(at path: URL) async throws -> (

@@ -56,7 +56,8 @@ struct RepositoryUpdateTests {
     #expect(!commands.contains(" fetch ") && !commands.contains("ls-remote"))
   }
 
-  @Test func pullsNamedBaseOnceAndLeavesLinkedWorktreeUntouched() async throws {
+  @Test(arguments: [false, true])
+  func pullsNamedBaseOnceAndLeavesLinkedWorktreeUntouched(_ squash: Bool) async throws {
     let f = try await Fixture(template: .singleRepository)
     defer { f.remove() }
     try await f.prepareGroup("feature", repositoryIDs: ["repo"])
@@ -70,14 +71,21 @@ struct RepositoryUpdateTests {
     _ = try await f.service.git.run(
       ["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/trunk"], at: path)
     _ = try await f.service.git.run(["config", "pull.rebase", "true"], at: path)
+    if squash {
+      _ = try await f.service.git.run(
+        ["config", "branch.trunk.mergeOptions", "--squash"], at: path)
+    }
     _ = try await f.service.git.run(["switch", "-c", "trunk"], at: source)
     try Data("upstream\n".utf8).write(to: source.appending(path: "README"))
     _ = try await f.service.git.run(["commit", "-am", "update trunk"], at: source)
+    let target = try #require(await f.service.git.oid("HEAD", at: source))
     _ = try await f.service.git.run(
       ["push", f.directory.appending(path: "repo.git").path, "trunk"], at: source)
     let (service, trace) = tracedService(f)
     let updated = await service.updateRepositories(at: f.root)
     #expect(updated.items.first?.data?["disposition"] == "updated", "\(updated.items)")
+    #expect(try await f.service.git.oid("HEAD", at: path) == target)
+    #expect(try await f.service.git.changes(at: path).isEmpty)
     #expect(try String(contentsOf: path.appending(path: "README"), encoding: .utf8) == "upstream\n")
     #expect(try await f.service.git.oid("HEAD", at: member) == original)
     #expect(try String(contentsOf: member.appending(path: "README"), encoding: .utf8) == "hello\n")
@@ -101,22 +109,52 @@ struct RepositoryUpdateTests {
     )
   }
 
-  @Test func divergentBaseDoesNotMergeOrRebaseLocalHistory() async throws {
+  @Test(arguments: [false, true])
+  func localHistoryIsPreservedWhenRemoteIsBehindOrDiverged(_ diverged: Bool) async throws {
     let f = try await Fixture(template: .singleRepository)
     defer { f.remove() }
     let path = f.root.appending(path: "repositories/repo")
     let source = f.directory.appending(path: "source")
     _ = try await f.service.git.run(["commit", "--allow-empty", "-m", "local"], at: path)
     let original = try #require(await f.service.git.oid("HEAD", at: path))
-    _ = try await f.service.git.run(["commit", "--allow-empty", "-m", "remote"], at: source)
-    _ = try await f.service.git.run(
-      ["push", f.directory.appending(path: "repo.git").path, "main"], at: source)
+    if diverged {
+      _ = try await f.service.git.run(["commit", "--allow-empty", "-m", "remote"], at: source)
+      _ = try await f.service.git.run(
+        ["push", f.directory.appending(path: "repo.git").path, "main"], at: source)
+    }
     let result = await f.service.updateRepositories(at: f.root)
-    #expect(result.status == .failed)
+    #expect(result.status == (diverged ? .failed : .success))
     #expect(result.items.first?.effects.first?.state == "applied")
-    #expect(result.items.first?.data?["actual-head"] == original)
-    #expect(result.items.first?.data?["working-tree"] == "clean")
+    if diverged {
+      #expect(result.items.first?.data?["actual-head"] == original)
+      #expect(result.items.first?.data?["working-tree"] == "clean")
+    } else {
+      #expect(result.items.first?.data?["disposition"] == "up-to-date")
+      #expect(try await f.service.git.changes(at: path).isEmpty)
+    }
     #expect(try await f.service.git.oid("HEAD", at: path) == original)
+  }
+
+  @Test func headChangedAfterMergeIsNotReportedAsUpToDate() async throws {
+    let f = try await Fixture(template: .singleRepository)
+    defer { f.remove() }
+    let path = f.root.appending(path: "repositories/repo")
+    let original = try #require(await f.service.git.oid("HEAD", at: path))
+    _ = try await advanceRemote(f)
+    let hooks = f.directory.appending(path: "hooks")
+    try FileManager.default.createDirectory(at: hooks, withIntermediateDirectories: false)
+    let hook = hooks.appending(path: "post-merge")
+    try Data("#!/bin/sh\n/usr/bin/git update-ref HEAD \(original)\n".utf8).write(to: hook)
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: hook.path)
+    _ = try await f.service.git.run(["config", "core.hooksPath", hooks.path], at: path)
+
+    let result = await f.service.updateRepositories(at: f.root)
+
+    let item = try #require(result.items.first)
+    #expect(result.status == .failed && item.reasonCode == "repository-changed")
+    #expect(item.data?["disposition"] == nil)
+    #expect(item.data?["actual-head"] == original && item.data?["working-tree"] == "dirty")
+    #expect(item.effects.last?.action == "fast-forward" && item.effects.last?.state == "unknown")
   }
 
   @Test(arguments: ["(detached)", "(null)", "outside-heads"])
