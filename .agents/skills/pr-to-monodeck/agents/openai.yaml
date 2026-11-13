@@ -1,7 +1,7 @@
 interface:
   display_name: "PR to MonoDeck"
-  short_description: "Verify pushed commits and open a PR against main"
-  default_prompt: "Use $pr-to-monodeck to verify that the current branch is already pushed, open a PR against qimaotech/mono-deck:main without running local tests, and return its URL."
+  short_description: "Verify pushed commits and open or reuse a PR against main"
+  default_prompt: "Use $pr-to-monodeck to verify that the current branch is already pushed, reuse a matching PR or open one against qimaotech/mono-deck:main without running local tests, and return its URL."
 
 policy:
   allow_implicit_invocation: false
