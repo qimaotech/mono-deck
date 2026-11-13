@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.1.4] - 2026-11-13
+
+### Fixed
+
+- Prevent workspace switches while a management form is open so it cannot act on the wrong workspace.
+- Keep repository and worktree updates fast-forward-only even when Git is configured to squash merges.
+
+### Changed
+
+- Check for app updates without using the GitHub API rate limit when the latest release includes an update manifest. Fall back to the GitHub API for older releases without a manifest.
+
 ## [2.1.3] - 2026-11-12
 
 ### Changed
