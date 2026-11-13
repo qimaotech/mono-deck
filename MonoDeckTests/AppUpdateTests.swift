@@ -26,12 +26,6 @@ struct AppUpdateTests {
     #expect(throws: MonoDeckError.self) {
       try service.verifyDownload(at: installer, asset: update.asset)
     }
-    let mismatched = try await runner.run(
-      "/usr/bin/python3", [script.path, "v3.0.0", installer.path])
-    #expect(mismatched.status != 0 && mismatched.stdout.isEmpty)
-    try Data().write(to: installer)
-    let empty = try await runner.run("/usr/bin/python3", [script.path, "v2.0.0", installer.path])
-    #expect(empty.status != 0 && empty.stdout.isEmpty)
   }
 
   @Test func releaseSelectionUsesNumericVersionsAndOnlyOffersStableUpgrades() throws {

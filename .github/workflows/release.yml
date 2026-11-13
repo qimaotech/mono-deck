@@ -95,6 +95,9 @@ jobs:
           ref: ${{ needs.validate.outputs.commit }}
           persist-credentials: false
 
+      - name: Run Python script tests on macOS
+        run: python3 -B -m unittest discover -s script/tests -v
+
       - name: Show toolchain
         run: |
           echo "MONO_DECK_DERIVED_DATA_PATH=$RUNNER_TEMP/DerivedData" >> "$GITHUB_ENV"

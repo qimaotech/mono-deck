@@ -5,64 +5,8 @@ import Testing
 @testable import MonoDeckCore
 
 struct TestTaskTests {
-  @Test(arguments: ["passed", "zero", "skipped", "failed"])
-  func testTaskChecksActualExecutionAndAlwaysCleansItsEnvironment(_ outcome: String) async throws {
-    let fixture = try TestTaskFixture(outcome: outcome)
-    defer { fixture.remove() }
-    let output = try await fixture.run()
-    #expect(output.status == (outcome == "passed" ? 0 : outcome == "failed" ? 65 : 1))
-    let invocation = try fixture.invocation()
-    #expect(invocation.arguments.contains("-only-testing:MonoDeckTests"))
-    #expect(invocation.environment["MONO_DECK_UNIT_TEST_HOST"] == "1")
-    #expect(invocation.environment["TEST_RUNNER_MONO_DECK_UNIT_TEST_HOST"] == "1")
-    #expect(invocation.environment["MONO_DECK_TEST_WORKSPACE"] == nil)
-    for key in [
-      "MONO_DECK_TEST_SUPPORT_DIRECTORY", "MONO_DECK_TEST_HOME_DIRECTORY",
-      "MONO_DECK_TEST_SESSION_DIRECTORY", "MONO_DECK_TEST_DEFAULTS", "MONO_DECK_TEST_LOGIN_SHELL",
-      "TMPDIR",
-    ] {
-      #expect(invocation.environment[key] == invocation.environment["TEST_RUNNER_\(key)"])
-    }
-    #expect(invocation.environment["MONO_DECK_TEST_DEFAULTS"] != "inherited-preferences")
-    #expect(!PathSafety.exists(invocation.directory))
-    #expect(
-      try await fixture.defaultsExist(invocation.environment["MONO_DECK_TEST_DEFAULTS"]!) == false)
-    #expect(try Data(contentsOf: fixture.sentinel) == Data("keep me".utf8))
-  }
-
-  @Test func filteredTestsKeepExplicitResultsAfterFailure() async throws {
-    let fixture = try TestTaskFixture(outcome: "failed")
-    defer { fixture.remove() }
-    let results = fixture.directory.appending(path: "saved results.xcresult")
-    let output = try await fixture.run(
-      filter: "MonoDeckTests/WorkflowTests",
-      arguments: ["-resultBundlePath", results.path, "-quiet"])
-    #expect(output.status == 65)
-    let invocation = try fixture.invocation()
-    #expect(invocation.arguments.contains("-only-testing:MonoDeckTests/WorkflowTests"))
-    #expect(invocation.arguments.filter { $0 == "-resultBundlePath" }.count == 1)
-    #expect(invocation.arguments.last == "-quiet")
-    #expect(PathSafety.exists(results) && !PathSafety.exists(invocation.directory))
-  }
-
-  @Test func enumerationDoesNotRequireExecutedTests() async throws {
-    let fixture = try TestTaskFixture(outcome: "zero")
-    defer { fixture.remove() }
-    let output = try await fixture.run(arguments: ["-enumerate-tests"])
-    #expect(output.status == 0)
-    #expect(!PathSafety.exists(try fixture.invocation().directory))
-  }
-
-  @Test func unconfirmedHostCleanupFailsAndPreservesItsEnvironment() async throws {
-    let fixture = try TestTaskFixture(outcome: "cleanup-failed")
-    defer { fixture.remove() }
-    let output = try await fixture.run()
-    #expect(output.status == 1)
-    #expect(PathSafety.exists(try fixture.invocation().directory))
-  }
-
   @Test func cancellationStopsOwnedHelpersAndCleansTheEnvironment() async throws {
-    let fixture = try TestTaskFixture(outcome: "waiting")
+    let fixture = try TestTaskFixture()
     defer { fixture.remove() }
     let operation = Task { try await fixture.runCapturingLog() }
     do {
@@ -95,7 +39,6 @@ struct TestTaskTests {
 }
 
 private struct TestTaskInvocation: Decodable {
-  let arguments: [String]
   let environment: [String: String]
   var directory: URL { URL(fileURLWithPath: environment["MONO_DECK_TEST_SESSION_DIRECTORY"]!) }
 }
@@ -107,44 +50,18 @@ private struct TestTaskFixture {
   private static let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
     .deletingLastPathComponent()
 
-  init(outcome: String) throws {
+  init() throws {
     directory = TestEnvironment.temporaryDirectory.appending(
       path: "mono-deck test task \(UUID().uuidString)")
     sentinel = directory.appending(path: "unrelated.txt")
     let bin = directory.appending(path: "bin")
     try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
     try Data("keep me".utf8).write(to: sentinel)
-    let build = """
-      #!/usr/bin/python3
-      import json, os, subprocess, sys, time
-      from pathlib import Path
-      base = Path(os.environ['MONO_DECK_SCRIPT_TEST_DIRECTORY'])
-      environment = {key: value for key, value in os.environ.items() if key.startswith(('MONO_DECK_TEST_', 'TEST_RUNNER_MONO_DECK_TEST_')) or key in ('MONO_DECK_UNIT_TEST_HOST', 'TEST_RUNNER_MONO_DECK_UNIT_TEST_HOST', 'TMPDIR', 'TEST_RUNNER_TMPDIR')}
-      (base / 'invocation.json').write_text(json.dumps({'arguments': sys.argv[1:], 'environment': environment}))
-      subprocess.run(['/usr/bin/defaults', 'write', os.environ['MONO_DECK_TEST_DEFAULTS'], 'marker', 'test'], check=True)
-      destination = Path(sys.argv[sys.argv.index('-resultBundlePath') + 1])
-      destination.mkdir()
-      if os.environ['MONO_DECK_SCRIPT_TEST_OUTCOME'] == 'cleanup-failed':
-          (Path(os.environ['MONO_DECK_TEST_SESSION_DIRECTORY']) / 'hosts' / 'identity.json').write_text('{}')
-      if os.environ['MONO_DECK_SCRIPT_TEST_OUTCOME'] == 'waiting':
-          helper = subprocess.Popen(['/bin/sleep', '30'])
-          # The test treats the appearance of helper.pid as a readiness signal.
-          temporary = base / 'helper.pid.tmp'
-          temporary.write_text(str(helper.pid))
-          temporary.replace(base / 'helper.pid')
-          time.sleep(30)
-      sys.exit(65 if os.environ['MONO_DECK_SCRIPT_TEST_OUTCOME'] == 'failed' else 0)
-      """
-    let report = """
-      #!/usr/bin/python3
-      import json, os, sys
-      outcome = os.environ['MONO_DECK_SCRIPT_TEST_OUTCOME']
-      if sys.argv[1] == 'swift': sys.exit(1)
-      print(json.dumps({'totalTestCount': 0 if outcome == 'zero' else 2, 'skippedTests': 2 if outcome == 'skipped' else 0}))
-      """
-    for (name, text) in [("xcodebuild", build), ("xcrun", report)] {
+    for name in ["xcodebuild", "xcrun"] {
+      let fixture = Self.root.appending(path: "script/tests/fixtures/\(name).py")
       let file = bin.appending(path: name)
-      try Data(text.utf8).write(to: file)
+      let contents = try "#!/usr/bin/python3\n" + String(contentsOf: fixture, encoding: .utf8)
+      try Data(contents.utf8).write(to: file)
       try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: file.path)
     }
     var environment = ProcessInfo.processInfo.environment
@@ -155,15 +72,9 @@ private struct TestTaskFixture {
     environment["MONO_DECK_UNIT_TEST_HOST"] = "1"
     environment["TEST_RUNNER_MONO_DECK_UNIT_TEST_HOST"] = "1"
     environment["MONO_DECK_SCRIPT_TEST_DIRECTORY"] = directory.path
-    environment["MONO_DECK_SCRIPT_TEST_OUTCOME"] = outcome
+    environment["MONO_DECK_SCRIPT_TEST_OUTCOME"] = "waiting"
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
     runner = CommandRunner(environment: environment)
-  }
-
-  func run(filter: String = "MonoDeckTests", arguments: [String] = []) async throws -> CommandOutput
-  {
-    try await runner.run(
-      "/usr/bin/python3",
-      [Self.root.appending(path: "script/run_tests.py").path, "--filter", filter, "--"] + arguments)
   }
 
   func invocation() throws -> TestTaskInvocation {

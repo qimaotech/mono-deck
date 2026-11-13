@@ -5,46 +5,6 @@ import Testing
 @testable import MonoDeckCore
 
 struct BuildAndRunScriptTests {
-  @Test func verificationPreservesExistingInstances() async throws {
-    let result = try await traceLogs(["--verify"])
-    #expect(result.status == 0)
-    #expect(result.text.hasPrefix("build\n"))
-    #expect(result.text.contains("launch:"))
-    #expect(!result.text.contains("stop") && !result.text.contains("log:"))
-  }
-
-  @Test(arguments: [("--logs", false), ("--telemetry", true)])
-  func loggingUsesOnlyTheLaunchedInstance(_ mode: String, _ mock: Bool) async throws {
-    let arguments = [mode] + (mock ? ["--mock", "linked-worktree-selected"] : [])
-    let result = try await traceLogs(arguments)
-    #expect(result.status == 0)
-    #expect(result.text.hasPrefix("stop\n") == !mock)
-    #expect(result.text.contains("launch:--activate"))
-    let invocation = try #require(result.text.split(separator: "\n").first { $0.hasPrefix("log:") })
-    #expect(
-      invocation
-        == (mode == "--telemetry"
-          ? "log:--process 12345 --predicate subsystem == \"fun.armantang.MonoDeck\""
-          : "log:--process 12345"))
-  }
-
-  @Test(arguments: ["", "App instance PID: 12345\nApp instance PID: 67890"])
-  func loggingRejectsMissingOrAmbiguousInstanceIDs(_ output: String) async throws {
-    let result = try await traceLogs(["--logs"], output: output)
-    #expect(result.status == 1)
-    #expect(!result.text.contains("log:"))
-    #expect(
-      String(decoding: result.stderr, as: UTF8.self).contains(
-        "Could not identify the launched App instance"))
-  }
-
-  @Test func failedLaunchDoesNotStartLoggingEvenWhenItReportsAPID() async throws {
-    let result = try await traceLogs(["--telemetry"], status: 23)
-    #expect(result.status == 23)
-    #expect(result.text.contains("App instance PID: 12345"))
-    #expect(!result.text.contains("log:"))
-  }
-
   @MainActor @Test func missingApplicationDoesNotReuseAnExistingInstance() async throws {
     let current = NSRunningApplication.current
     let temporary = TestEnvironment.temporaryDirectory
@@ -178,35 +138,6 @@ struct BuildAndRunScriptTests {
       let pid = Int32(line.dropFirst("App instance PID: ".count))
     else { return nil }
     return NSRunningApplication(processIdentifier: pid)
-  }
-
-  private func traceLogs(
-    _ arguments: [String], output: String = "App instance PID: 12345", status: Int32 = 0
-  ) async throws -> CommandOutput {
-    let directory = TestEnvironment.temporaryDirectory.appending(
-      path: "mono-deck log tests \(UUID().uuidString)")
-    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-    defer { try? FileManager.default.removeItem(at: directory) }
-    let script = """
-      source "$1"
-      TMPDIR="$2"
-      launch_output="$3"
-      launch_status="$4"
-      stop_app() { echo stop; }
-      build_app() { echo build; }
-      launch_verified_app() { echo "launch:$1"; printf '%s\\n' "$launch_output"; return "$launch_status"; }
-      stream_log() { printf 'log:%s\\n' "$*"; }
-      main "${@:5}"
-      """
-    let result = try await CommandRunner().run(
-      "/bin/bash",
-      [
-        "-c", script, "mono-deck-log-tests",
-        Self.root.appending(path: "script/build_and_run.sh").path,
-        directory.path, output, String(status),
-      ] + arguments)
-    #expect(try FileManager.default.contentsOfDirectory(atPath: directory.path).isEmpty)
-    return result
   }
 
   private func runHelper(_ name: String, _ arguments: [String]) async throws -> CommandOutput {
