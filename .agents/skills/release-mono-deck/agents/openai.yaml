@@ -1,7 +1,7 @@
 interface:
   display_name: "Release MonoDeck"
   short_description: "Prepare a release PR; merging publishes automatically"
-  default_prompt: "Use $release-mono-deck to prepare the version and changelog, validate them, and open a release PR for automatic publication after merge."
+  default_prompt: "Use $release-mono-deck to compare my current branch with upstream main and open a release PR from my branch after updating and validating the version and changelog."
 
 policy:
   allow_implicit_invocation: false
