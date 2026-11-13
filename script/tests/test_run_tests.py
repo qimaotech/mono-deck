@@ -2,12 +2,14 @@ import json
 import os
 from pathlib import Path
 import plistlib
-import signal
+import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
 import uuid
+
+from process_helpers import stop_process, stop_process_group
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -65,9 +67,9 @@ class TestTask:
     self.outcome = outcome
 
   def __enter__(self):
-    self.temporary = tempfile.TemporaryDirectory(prefix="mono-deck test task ")
+    self.directory = Path(tempfile.mkdtemp(prefix="mono-deck test task "))
+    self.process = None
     try:
-      self.directory = Path(self.temporary.name)
       self.sentinel = self.directory / "unrelated.txt"
       self.sentinel.write_text("keep me", encoding="utf-8")
       bin_directory = self.directory / "bin"
@@ -91,39 +93,45 @@ class TestTask:
       })
       return self
     except BaseException:
-      self.temporary.cleanup()
+      shutil.rmtree(self.directory)
       raise
 
   def __exit__(self, *_):
     try:
-      if (self.directory / "invocation.json").exists():
-        subprocess.run(["/usr/bin/defaults", "delete", self.suite()],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
-        preferences = Path.home() / "Library" / "Preferences" / f"{self.suite()}.plist"
-        if preferences.exists():
-          with preferences.open("rb") as file:
-            if plistlib.load(file) != {}:
-              raise RuntimeError(f"Could not remove test preferences: {preferences}")
-          preferences.unlink()
-    finally:
-      self.temporary.cleanup()
+      self.stop_processes()
+    except (OSError, subprocess.SubprocessError) as error:
+      raise RuntimeError(f"Could not stop test processes; keeping {self.directory}") from error
+    if (self.directory / "invocation.json").exists():
+      subprocess.run(["/usr/bin/defaults", "delete", self.suite()],
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+      preferences = Path.home() / "Library" / "Preferences" / f"{self.suite()}.plist"
+      try:
+        with preferences.open("rb") as file:
+          if plistlib.load(file) != {}:
+            raise RuntimeError(f"Could not remove test preferences; keeping {self.directory}")
+        preferences.unlink()
+      except FileNotFoundError:
+        pass
+    shutil.rmtree(self.directory)
 
   def run(self, test_filter="MonoDeckTests", *arguments):
-    process = subprocess.Popen(
+    self.process = subprocess.Popen(
       [sys.executable, str(ROOT / "script" / "run_tests.py"), "--filter", test_filter, "--", *arguments],
       cwd=ROOT, env=self.environment, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
       text=True, start_new_session=True)
     try:
-      output, _ = process.communicate(timeout=20)
-      return subprocess.CompletedProcess(process.args, process.returncode, output)
+      output, _ = self.process.communicate(timeout=20)
+      return subprocess.CompletedProcess(self.process.args, self.process.returncode, output)
     finally:
-      if process.poll() is None:
-        os.killpg(process.pid, signal.SIGTERM)
-        try:
-          process.communicate(timeout=5)
-        except subprocess.TimeoutExpired:
-          os.killpg(process.pid, signal.SIGKILL)
-          process.communicate(timeout=5)
+      self.stop_processes()
+
+  def stop_processes(self):
+    try:
+      if self.process is not None:
+        stop_process(self.process)
+    finally:
+      if (self.directory / "invocation.json").exists():
+        stop_process_group(self.invocation()["process-group"])
 
   def invocation(self):
     return json.loads((self.directory / "invocation.json").read_text(encoding="utf-8"))

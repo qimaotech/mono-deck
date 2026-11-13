@@ -19,8 +19,15 @@
     @Test func cancellationStopsTheBuildAndCleansTemporaryData() async throws {
       let directory = temporaryDirectory()
       let pidFile = directory.appending(path: "build.pid")
-      let build =
-        "import os, sys, time; from pathlib import Path; Path(sys.argv[1]).write_text(str(os.getpid())); time.sleep(30)"
+      let build = """
+        import os, sys, time
+        from pathlib import Path
+        pid = Path(sys.argv[1])
+        temporary = pid.with_suffix('.tmp')
+        temporary.write_text(str(os.getpid()))
+        temporary.replace(pid)
+        time.sleep(30)
+        """
       let task = Task {
         try await MockWorkspacePreparation.prepare(
           directory: directory, buildCommand: ["/usr/bin/python3", "-c", build, pidFile.path])

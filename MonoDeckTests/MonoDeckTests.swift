@@ -397,7 +397,7 @@ struct Fixture: Sendable {
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
     let source = directory.appending(path: "source")
     try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
-    var environment = ProcessInfo.processInfo.environment
+    var environment = ProcessInfo.processInfo.environment.filter { !$0.key.hasPrefix("GIT_") }
     environment["GIT_CONFIG_NOSYSTEM"] = "1"
     environment["GIT_CONFIG_GLOBAL"] = directory.appending(path: "gitconfig").path
     environment["GIT_AUTHOR_NAME"] = "MonoDeck Test"
@@ -489,7 +489,10 @@ struct Fixture: Sendable {
       _ = try await service.git.run(["commit", "-m", "workspace"], at: root)
     }
   }
-  func remove() { try? FileManager.default.removeItem(at: directory) }
+  func remove() {
+    TestEnvironment.removePreferences(named: directory.lastPathComponent)
+    try? FileManager.default.removeItem(at: directory)
+  }
 
   private func restore(_ kind: FixtureTemplate) async throws {
     try Task.checkCancellation()

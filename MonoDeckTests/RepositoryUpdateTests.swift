@@ -321,7 +321,7 @@ struct RepositoryUpdateTests {
       for index in 0..<8 { try batch.release(index) }
       let result = await operation.value
       #expect(result.status == .partialSuccess)
-      #expect(result.items.map(\.resource.repositoryID) == (0..<8).map { "repo\($0)" })
+      try #require(result.items.map(\.resource.repositoryID) == (0..<8).map { "repo\($0)" })
       #expect(result.items[3].status == .failed)
       #expect(
         result.items.enumerated().allSatisfy {
@@ -346,6 +346,7 @@ struct RepositoryUpdateTests {
       let result = await operation.value
       #expect(result.status == .cancelled)
       #expect(try batch.started().count == 6)
+      #expect(result.items.map(\.resource.repositoryID) == (0..<8).map { "repo\($0)" })
       #expect(
         result.items.prefix(6).allSatisfy {
           $0.status == .cancelled && $0.data?["working-tree"] == "clean"

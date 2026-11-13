@@ -125,6 +125,7 @@ struct BuildAndRunScriptTests {
         }
       }
       if application?.isTerminated != false {
+        TestEnvironment.removePreferences(named: "MonoDeckMock.\(fixture.identifier)")
         fixture.remove()
       } else {
         Issue.record("Could not confirm verification App exit; keeping \(fixture.directory.path).")

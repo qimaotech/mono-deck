@@ -8,6 +8,8 @@ import tempfile
 import time
 import unittest
 
+from process_helpers import stop_process
+
 
 SCRIPT_DIRECTORY = Path(__file__).resolve().parents[1]
 
@@ -50,8 +52,10 @@ class BuildAndRunScriptTests(unittest.TestCase):
     self.assertNotIn("log:", result.stdout)
 
   def trace_logs(self, arguments, output="App instance PID: 12345", status=0):
-    with tempfile.TemporaryDirectory(prefix="mono-deck log tests ") as temporary:
-      directory = Path(temporary)
+    directory = Path(tempfile.mkdtemp(prefix="mono-deck log tests "))
+    temporary = str(directory)
+    can_remove = True
+    try:
       environment = dict(os.environ, TMPDIR=temporary, PYTHONDONTWRITEBYTECODE="1")
       driver = r"""
         source "$1"
@@ -74,14 +78,20 @@ class BuildAndRunScriptTests(unittest.TestCase):
       process = subprocess.Popen(command, env=environment, stdin=subprocess.DEVNULL,
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                                  start_new_session=True)
+      can_remove = False
       try:
         stdout, stderr = process.communicate(timeout=10)
-      except BaseException:
-        stop_process(process)
-        process.communicate(timeout=3)
-        raise
+      finally:
+        try:
+          stop_process(process)
+        except (OSError, subprocess.SubprocessError) as error:
+          raise RuntimeError(f"Could not stop test processes; keeping {directory}") from error
+        can_remove = True
       self.assertEqual(list(directory.iterdir()), [])
       return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+    finally:
+      if can_remove:
+        shutil.rmtree(directory)
 
 
 @unittest.skipUnless(sys.platform == "darwin", "Mock process lookup requires macOS")
@@ -274,10 +284,8 @@ class LifecycleSession:
     self.processes.append(process)
     try:
       output, error = process.communicate(timeout=10)
-    except BaseException:
+    finally:
       stop_process(process)
-      process.communicate(timeout=3)
-      raise
     return subprocess.CompletedProcess(arguments, process.returncode, output, error)
 
   def cleanup(self):
@@ -285,28 +293,11 @@ class LifecycleSession:
     for process in self.processes:
       try:
         stop_process(process)
-      except (OSError, subprocess.TimeoutExpired) as error:
+      except (OSError, subprocess.SubprocessError) as error:
         failures.append(str(error))
     if failures:
       raise RuntimeError(f"Could not stop test processes; keeping {self.base}: {failures}")
     shutil.rmtree(self.base)
-
-
-def stop_process(process):
-  if process.poll() is not None:
-    return
-  try:
-    os.killpg(process.pid, signal.SIGTERM)
-  except ProcessLookupError:
-    pass
-  try:
-    process.wait(timeout=3)
-  except subprocess.TimeoutExpired:
-    try:
-      os.killpg(process.pid, signal.SIGKILL)
-    except ProcessLookupError:
-      pass
-    process.wait(timeout=3)
 
 
 if __name__ == "__main__":

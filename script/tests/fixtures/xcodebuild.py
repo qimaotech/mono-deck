@@ -12,8 +12,11 @@ environment = {
   if key.startswith(("MONO_DECK_TEST_", "TEST_RUNNER_MONO_DECK_TEST_"))
   or key in ("MONO_DECK_UNIT_TEST_HOST", "TEST_RUNNER_MONO_DECK_UNIT_TEST_HOST", "TMPDIR", "TEST_RUNNER_TMPDIR")
 }
-(base / "invocation.json").write_text(
-  json.dumps({"arguments": sys.argv[1:], "environment": environment}), encoding="utf-8")
+invocation = base / "invocation.json.tmp"
+invocation.write_text(
+  json.dumps({"arguments": sys.argv[1:], "environment": environment, "process-group": os.getpgrp()}),
+  encoding="utf-8")
+invocation.replace(base / "invocation.json")
 subprocess.run(["/usr/bin/defaults", "write", os.environ["MONO_DECK_TEST_DEFAULTS"], "marker", "test"],
                check=True, timeout=5)
 Path(sys.argv[sys.argv.index("-resultBundlePath") + 1]).mkdir()

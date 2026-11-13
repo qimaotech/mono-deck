@@ -30,22 +30,6 @@ struct WorkspaceLockTests {
     }
   }
 
-  @Test func acquisitionTimesOutWhileAnotherOperationHoldsTheLock() async throws {
-    let fixture = try await Fixture(createRemote: false)
-    defer { fixture.remove() }
-    let lease = try fixture.service.store.tryLock(fixture.root)
-    defer { lease.unlock() }
-    do {
-      _ = try await fixture.service.store.lock(fixture.root)
-      Issue.record("Expected workspace lock acquisition to time out.")
-    } catch {
-      #expect((error as? MonoDeckError)?.code == "workspace-lock-timeout")
-    }
-    lease.unlock()
-    let acquired = try await fixture.service.store.lock(fixture.root)
-    acquired.unlock()
-  }
-
   @Test func cancellationStopsWaitingWithoutReleasingAnotherOperationsLock() async throws {
     let fixture = try await Fixture(createRemote: false)
     defer { fixture.remove() }

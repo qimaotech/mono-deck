@@ -315,7 +315,7 @@ import Testing
     defer { try? FileManager.default.removeItem(at: directory) }
     let suite = directory.lastPathComponent
     let defaults = try #require(UserDefaults(suiteName: suite))
-    defer { defaults.removePersistentDomain(forName: suite) }
+    defer { TestEnvironment.removePreferences(named: suite) }
     let service = WorkspaceService(store: .init(support: directory.appending(path: "support")))
     let record = WorkspaceRecord(root: PathSafety.canonical(directory).path)
     try service.store.save(record)

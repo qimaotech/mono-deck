@@ -7,7 +7,7 @@ import Testing
   @Test func sidebarDragSavesOnlyTheFinalWidthAndRestoresIt() throws {
     let suite = "MonoDeckTests.SplitView.\(UUID().uuidString)"
     let defaults = try #require(UserDefaults(suiteName: suite))
-    defer { defaults.removePersistentDomain(forName: suite) }
+    defer { TestEnvironment.removePreferences(named: suite) }
     defaults.set(300.0, forKey: "sidebarWidth")
     let split = makeSplit(defaults: defaults, vertical: true)
     #expect(split.arrangedSubviews[0].frame.width == 300)
@@ -27,7 +27,7 @@ import Testing
   @Test func gitDividerKeepsUnsavedRatioDuringLayoutAndPreservesItWhenContentFits() throws {
     let suite = "MonoDeckTests.SplitView.\(UUID().uuidString)"
     let defaults = try #require(UserDefaults(suiteName: suite))
-    defer { defaults.removePersistentDomain(forName: suite) }
+    defer { TestEnvironment.removePreferences(named: suite) }
     defaults.set(0.6, forKey: "gitSplitRatio")
     let split = makeSplit(defaults: defaults, vertical: false)
     split.setPosition(270, ofDividerAt: 0)

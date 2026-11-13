@@ -14,13 +14,14 @@ import Testing
     parent.executableURL = URL(fileURLWithPath: "/bin/sleep")
     parent.arguments = ["60"]
     var handoff: AppRelaunch?
+    var handoffPID: Int32?
     defer {
-      if let handoff { clean(handoff, using: relauncher) }
+      let helperExited = handoff.map { clean($0, pid: handoffPID, using: relauncher) } ?? true
       if parent.isRunning {
         parent.terminate()
         parent.waitUntilExit()
       }
-      fixture.remove()
+      if helperExited { fixture.remove() }
     }
     let output = try await CommandRunner().run(
       "/usr/bin/ditto", [Bundle.main.bundleURL.path, fixture.application.path])
@@ -33,6 +34,7 @@ import Testing
       parentPID: parent.processIdentifier)
     handoff = prepared
     let pid = try helperPID(prepared)
+    handoffPID = pid
     #expect(
       !NSWorkspace.shared.runningApplications.contains {
         $0.bundleURL.map { PathSafety.canonical($0).path } == applicationPath
@@ -147,7 +149,8 @@ import Testing
 
   @Test func finalQuitWaitsForHelperReadinessAndHandoffFailureAllowsRetry() async throws {
     let fixture = try AppUpdateFixture()
-    defer { fixture.remove() }
+    var helperExited = true
+    defer { if helperExited { fixture.remove() } }
     let browsing = try await Fixture(template: .emptyWorkspace)
     defer { browsing.remove() }
     try await browsing.prepareEmptyGroup("feature")
@@ -158,7 +161,8 @@ import Testing
       """
       #!/bin/sh
       printf '%s' "$3" > "$RELAUNCH_TEST_HANDOFF"
-      printf '%s' "$$" > "$3/ready"
+      printf '%s' "$$" > "$3/ready.tmp"
+      /bin/mv "$3/ready.tmp" "$3/ready"
       while [ -d "$3" ] && [ ! -e "$3/cancelled" ]; do /bin/sleep 0.02; done
       """.utf8
     ).write(to: helper)
@@ -176,7 +180,8 @@ import Testing
     quit.delegate = delegate
     delegate.model = model
     var handoff: AppRelaunch?
-    defer { if let handoff { clean(handoff, using: relauncher) } }
+    var handoffPID: Int32?
+    defer { if let handoff { helperExited = clean(handoff, pid: handoffPID, using: relauncher) } }
     do {
       model.defaults.set(record.root, forKey: "workspace")
       model.workspace.record = record
@@ -193,6 +198,7 @@ import Testing
         directory: URL(fileURLWithPath: try String(contentsOf: handoffPath, encoding: .utf8)))
       handoff = prepared
       let pid = try helperPID(prepared)
+      handoffPID = pid
       #expect(
         PathSafety.exists(prepared.ready) && relaunch.restartPending
           && quit.replies == [.terminateNow])
@@ -229,14 +235,21 @@ import Testing
 
   private func running(_ pid: Int32) -> Bool { kill(pid, 0) == 0 || errno != ESRCH }
 
-  private func clean(_ relaunch: AppRelaunch, using relauncher: AppRelauncher) {
+  private func clean(_ relaunch: AppRelaunch, pid: Int32?, using relauncher: AppRelauncher) -> Bool
+  {
     relauncher.cancel(relaunch)
-    if let pid = try? helperPID(relaunch) {
-      let deadline = Date(timeIntervalSinceNow: 5)
-      while running(pid), Date() < deadline { usleep(10_000) }
-      #expect(!running(pid))
+    guard let pid, pid > 1 else {
+      Issue.record("Could not identify relaunch helper; keeping \(relaunch.directory.path)")
+      return false
+    }
+    let deadline = Date(timeIntervalSinceNow: 5)
+    while running(pid), Date() < deadline { usleep(10_000) }
+    guard !running(pid) else {
+      Issue.record("Relaunch helper is still running; keeping \(relaunch.directory.path)")
+      return false
     }
     relauncher.discard(relaunch)
+    return true
   }
 
   @MainActor private final class QuitProbe {

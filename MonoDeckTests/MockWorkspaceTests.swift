@@ -56,7 +56,10 @@
 
     @Test func repositoryChangesStayInsideMockEnvironment() async throws {
       let mock = try await makeMock()
-      defer { mock.remove() }
+      defer {
+        mock.remove()
+        TestEnvironment.removePreferences(named: mock.suite)
+      }
       let service = mock.fixture.service
       let original = try service.store.load(mock.fixture.root)
       let removed = await service.deleteConfirmed(
@@ -241,6 +244,7 @@
     private func withModels(
       _ mock: MockWorkspace, initial: [AppModel] = [], _ body: (MockModels) async throws -> Void
     ) async throws {
+      defer { TestEnvironment.removePreferences(named: mock.suite) }
       let models = MockModels(initial)
       do { try await body(models) } catch {
         await models.stop()

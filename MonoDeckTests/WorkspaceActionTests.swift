@@ -30,7 +30,7 @@ import Testing
       #expect(model.presentation.message == model.text.message(issue))
       #expect(model.management.sheet == nil && model.management.openingFormTask == nil)
       let opened = try makeModel(fixture, tools: tools)
-      defer { opened.defaults.removePersistentDomain(forName: opened.defaultsSuite) }
+      defer { TestEnvironment.removePreferences(named: opened.defaultsSuite) }
       opened.model.workspace.maintenanceState = model.workspace.maintenanceState
       let token = operationID == nil ? nil : opened.model.operations.begin(.management)
       if state == "cancelling" { opened.model.operations.cancel() }
@@ -265,7 +265,7 @@ import Testing
       })
     let value = try makeModel(fixture, tools: tools)
     let model = value.model
-    defer { value.defaults.removePersistentDomain(forName: value.defaultsSuite) }
+    defer { TestEnvironment.removePreferences(named: value.defaultsSuite) }
     do {
       switch failure {
       case "missing": break
@@ -358,7 +358,7 @@ import Testing
     let model = value.model
     defer {
       gate.release()
-      value.defaults.removePersistentDomain(forName: value.defaultsSuite)
+      TestEnvironment.removePreferences(named: value.defaultsSuite)
     }
     let tool = try #require(ExternalTool.builtIn.first { $0.id == "terminal" })
     do {
@@ -439,7 +439,7 @@ import Testing
     let model = value.model
     defer {
       gate.release()
-      value.defaults.removePersistentDomain(forName: value.defaultsSuite)
+      TestEnvironment.removePreferences(named: value.defaultsSuite)
     }
     let tool = try #require(ExternalTool.builtIn.first { $0.id == "terminal" })
     do {
@@ -488,7 +488,7 @@ import Testing
     let fixture = try await Fixture(template: template)
     defer { fixture.remove() }
     let value = try makeModel(fixture)
-    defer { value.defaults.removePersistentDomain(forName: value.defaultsSuite) }
+    defer { TestEnvironment.removePreferences(named: value.defaultsSuite) }
     do {
       try await body(value.model, fixture)
       await value.model.workspace.stopReads()

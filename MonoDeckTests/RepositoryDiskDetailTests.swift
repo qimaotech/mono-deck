@@ -466,12 +466,14 @@ import Testing
       }
       try #require(await cache.started)
       details.refresh(nil, in: record)
+      var drainStarted = false
       var drained = false
       let drain = Task {
+        drainStarted = true
         await details.waitForReads()
         drained = true
       }
-      await Task.yield()
+      try await eventually { drainStarted }
       #expect(!drained && details.detail.summary == nil)
       await cache.release()
       await drain.value

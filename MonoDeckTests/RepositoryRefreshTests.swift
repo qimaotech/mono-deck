@@ -249,12 +249,15 @@ import Testing
     do {
       try await eventually { gate.started.contains(head) }
       let reading = try #require(details.detailTask)
+      var waiterStarted = false
       var waiterFinished = false
       let waiter = Task {
+        waiterStarted = true
         await details.waitForDetail()
         waiterFinished = true
       }
-      await Task.yield()
+      try await eventually { waiterStarted }
+      #expect(!waiterFinished)
       waiter.cancel()
       try await eventually { waiterFinished }
       await waiter.value

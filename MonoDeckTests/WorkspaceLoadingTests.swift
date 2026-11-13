@@ -2055,7 +2055,7 @@ import Testing
   }
 
   @Test func switchingWorkspacesWhileLoadingKeepsTheNewWorkspace() async throws {
-    let fixture = try await Fixture(createRemote: false)
+    let fixture = try await Fixture(template: .emptyWorkspace)
     defer { fixture.remove() }
     var original = WorkspaceRecord(root: PathSafety.canonical(fixture.root).path)
     original.groups["feature"] = WorktreeGroup(branchName: "feature")
@@ -2068,17 +2068,21 @@ import Testing
     let next = try await fixture.service.load(nextRoot)
     let suite = "MonoDeckLoadingTests.\(UUID().uuidString)"
     let defaults = try #require(UserDefaults(suiteName: suite))
-    defer { defaults.removePersistentDomain(forName: suite) }
+    defer { TestEnvironment.removePreferences(named: suite) }
     defaults.set(original.root, forKey: "workspace")
     let model = AppModel(defaults: defaults, service: fixture.service)
+    var gate = try ReloadValidationGate(fixture.root)
+    defer { try? gate.resume() }
 
     let first = Task { await model.workspace.maintainWorkspace() }
     do {
-      try await waitForReadLock(fixture)
+      try await gate.waitUntilStarted()
       try await model.switchTo(nextRoot)
+      try gate.resume()
       await first.value
     } catch {
       first.cancel()
+      try? gate.resume()
       await model.workspace.stopReads()
       await first.value
       throw error
@@ -2186,18 +2190,6 @@ import Testing
     model.workspace.record = try fixture.service.store.load(fixture.root)
     defaults.set(model.workspace.record?.root, forKey: "workspace")
     return model
-  }
-
-  private func waitForReadLock(_ fixture: Fixture) async throws {
-    let deadline = ContinuousClock.now.advanced(by: .seconds(5))
-    while ContinuousClock.now < deadline {
-      do {
-        let lease = try fixture.service.store.tryLock(fixture.root)
-        lease.unlock()
-      } catch let error as MonoDeckError where error.code == "workspace-busy" { return }
-      try await Task.sleep(for: .milliseconds(1))
-    }
-    throw MonoDeckError("test-timeout", "Workspace reload did not acquire its read lock.")
   }
 
   private func waitUntil(

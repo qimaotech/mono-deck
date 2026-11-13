@@ -860,7 +860,7 @@ struct FailureTests {
     let service = WorkspaceService(store: failing, git: f.service.git)
     let result = await service.deleteConfirmed(.group("feature"), at: f.root)
     #expect(result.status == .failed)
-    #expect(result.items[0].effects.first?.state == "applied")
+    #expect(result.items.first?.effects.first?.state == "applied")
     #expect(result.items.last?.resource == .group("feature"))
     #expect(result.items.last?.reasonCode == "not-processed")
     #expect(PathSafety.exists(f.root.appending(path: "worktrees/feature")))
@@ -926,7 +926,7 @@ struct FailureTests {
         "/bin/sh",
         [
           "-c",
-          "exec 1>&- 2>&-; echo $$ > \"$1\"; trap 'exit 143' TERM INT; while :; do sleep 0.02; done",
+          "exec 1>&- 2>&-; echo $$ > \"$1.tmp\"; /bin/mv \"$1.tmp\" \"$1\"; trap 'exit 143' TERM INT; while :; do sleep 0.02; done",
           "mono-deck-closed-output-test", pidFile.path,
         ], timeout: reason == "network-timeout" ? 1 : 30)
     }
@@ -961,7 +961,8 @@ struct FailureTests {
     try Data(
       """
       #!/bin/sh
-      echo $$ > "$1/helper.pid"
+      echo $$ > "$1/helper.pid.tmp"
+      /bin/mv "$1/helper.pid.tmp" "$1/helper.pid"
       while [ ! -e "$1/release" ]; do sleep 0.02; done
       """.utf8
     ).write(to: helper)
@@ -1008,7 +1009,8 @@ struct FailureTests {
       """
       #!/bin/sh
       trap '' TERM INT
-      echo $$ > "$1/helper.pid"
+      echo $$ > "$1/helper.pid.tmp"
+      /bin/mv "$1/helper.pid.tmp" "$1/helper.pid"
       while [ ! -e "$1/release" ]; do sleep 0.02; done
       """.utf8
     ).write(to: helper)

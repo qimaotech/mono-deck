@@ -86,8 +86,18 @@ class ReleaseWorkflowTests(unittest.TestCase):
       self.assertEqual(resumed.returncode, 0, resumed.stderr)
       self.assertFalse(repo.release()["isDraft"])
       calls = repo.calls()
-      self.assertEqual(sum(call[:2] == ["release", "create"] for call in calls), 1)
-      self.assertTrue(any("make_latest=legacy" in call for call in calls))
+      creations = [call for call in calls if call[:2] == ["release", "create"]]
+      self.assertEqual(len(creations), 1)
+      self.assertIn("--draft", creations[0])
+      self.assertIn("--verify-tag", creations[0])
+      publications = [call for call in calls if call[:1] == ["api"]]
+      self.assertEqual(len(publications), 1)
+      publication = publications[0]
+      self.assertIn("repos/{owner}/{repo}/releases/1", publication)
+      options = list(zip(publication, publication[1:]))
+      self.assertIn(("--method", "PATCH"), options)
+      self.assertIn(("-F", "draft=false"), options)
+      self.assertIn(("-f", "make_latest=legacy"), options)
 
       repeated = repo.publish(commit)
       self.assertEqual(repeated.returncode, 0, repeated.stderr)

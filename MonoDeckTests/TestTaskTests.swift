@@ -100,12 +100,7 @@ private struct TestTaskFixture {
     if let invocation = try? invocation(),
       let suite = invocation.environment["MONO_DECK_TEST_DEFAULTS"]
     {
-      let process = Process()
-      process.executableURL = URL(fileURLWithPath: "/usr/bin/defaults")
-      process.arguments = ["delete", suite]
-      process.standardOutput = FileHandle.nullDevice
-      process.standardError = FileHandle.nullDevice
-      if (try? process.run()) != nil { process.waitUntilExit() }
+      TestEnvironment.removePreferences(named: suite)
     }
     try? FileManager.default.removeItem(at: directory)
   }

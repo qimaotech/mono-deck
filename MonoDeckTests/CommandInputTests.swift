@@ -37,7 +37,8 @@ struct CommandInputTests {
       try await CommandRunner().run(
         "/bin/sh",
         [
-          "-c", "echo $$ > \"$1\"; trap 'exit 143' TERM INT; while :; do sleep 0.02; done",
+          "-c",
+          "trap 'exit 143' TERM INT; echo $$ > \"$1.tmp\"; /bin/mv \"$1.tmp\" \"$1\"; while :; do sleep 0.02; done",
           "mono-deck-input-test", pidFile.path,
         ], timeout: reason == "network-timeout" ? 1 : 30,
         input: Data(repeating: 1, count: 1_024 * 1_024))

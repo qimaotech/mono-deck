@@ -77,7 +77,7 @@ struct WorkflowTests {
       try #require(PathSafety.exists(probe.appending(path: "other6")))
       try Data().write(to: probe.appending(path: "release"))
       let targets = try await preview.value
-      #expect(
+      try #require(
         targets.map(\.resource) == members.map {
           Resource.member(groupName: "feature", repositoryID: $0)
         } + [.group("feature")])
@@ -127,8 +127,9 @@ struct WorkflowTests {
     _ = try await f.service.git.run(["checkout", "--detach"], at: member)
     let preview = try await f.service.previewDelete(
       .member(groupName: "feature", repositoryID: "repo"), at: f.root)
-    #expect(preview[0].detached)
-    #expect(preview[0].branch == nil)
+    let target = try #require(preview.first)
+    #expect(target.detached)
+    #expect(target.branch == nil)
     #expect(
       await f.service.deleteConfirmed(
         .member(groupName: "feature", repositoryID: "repo"), at: f.root

@@ -212,7 +212,8 @@ private struct PreparationGate {
       name=${name%.git}
       case "$MONO_DECK_PREPARATION_BLOCKED_IDS" in
         *"|$name|"*)
-          printf '%s' "$PWD" > "$MONO_DECK_PREPARATION_PROBE/started/$$"
+          printf '%s' "$PWD" > "$MONO_DECK_PREPARATION_PROBE/$$.tmp"
+          /bin/mv "$MONO_DECK_PREPARATION_PROBE/$$.tmp" "$MONO_DECK_PREPARATION_PROBE/started/$$"
           trap 'exit 143' TERM INT
           while [ ! -e "$MONO_DECK_PREPARATION_PROBE/release/$$" ]; do sleep 0.02; done
           ;;

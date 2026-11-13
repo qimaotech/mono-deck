@@ -227,8 +227,7 @@ import Testing
       Issue.record("Update verification is still running; keeping \(directory.path)")
       return
     }
-    UserDefaults(suiteName: directory.lastPathComponent)?.removePersistentDomain(
-      forName: directory.lastPathComponent)
+    TestEnvironment.removePreferences(named: directory.lastPathComponent)
     try? FileManager.default.removeItem(at: directory)
   }
 }
