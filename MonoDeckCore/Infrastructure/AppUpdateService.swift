@@ -39,14 +39,17 @@ public struct AppUpdateService: Sendable {
   }
 
   public func check(currentVersion: String = MonoDeckVersion.current) async throws -> AppUpdate? {
-    var request = URLRequest(
-      url: URL(string: "https://api.github.com/repos/qimaotech/mono-deck/releases/latest")!)
-    request.cachePolicy = .reloadIgnoringLocalCacheData
-    request.timeoutInterval = 30
-    request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-    request.setValue("MonoDeck/\(currentVersion)", forHTTPHeaderField: "User-Agent")
-    let (data, response) = try await session.data(for: request)
-    try Task.checkCancellation()
+    let (data, response) = try await releaseData(
+      at: Self.releasesURL.appending(path: "download/MonoDeck-update.json"),
+      accept: "application/json", currentVersion: currentVersion)
+    // Releases published before the update manifest still use GitHub's API.
+    if (response as? HTTPURLResponse)?.statusCode == 404 {
+      let (legacyData, legacyResponse) = try await releaseData(
+        at: URL(string: "https://api.github.com/repos/qimaotech/mono-deck/releases/latest")!,
+        accept: "application/vnd.github+json", currentVersion: currentVersion)
+      try validate(legacyResponse)
+      return try update(from: legacyData, currentVersion: currentVersion)
+    }
     try validate(response)
     return try update(from: data, currentVersion: currentVersion)
   }
@@ -140,6 +143,20 @@ public struct AppUpdateService: Sendable {
     guard actual == parts[1].lowercased() else {
       throw MonoDeckError("update-integrity-failed", .installerChecksumDoesNotMatchPleaseTryAgain)
     }
+  }
+
+  private func releaseData(at url: URL, accept: String, currentVersion: String) async throws -> (
+    Data, URLResponse
+  ) {
+    try Task.checkCancellation()
+    var request = URLRequest(url: url)
+    request.cachePolicy = .reloadIgnoringLocalCacheData
+    request.timeoutInterval = 30
+    request.setValue(accept, forHTTPHeaderField: "Accept")
+    request.setValue("MonoDeck/\(currentVersion)", forHTTPHeaderField: "User-Agent")
+    let (data, response) = try await session.data(for: request)
+    try Task.checkCancellation()
+    return (data, response)
   }
 
   private func validate(_ response: URLResponse) throws {

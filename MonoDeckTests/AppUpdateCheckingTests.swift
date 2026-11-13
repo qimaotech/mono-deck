@@ -113,6 +113,37 @@ import Testing
     if !manual { #expect(model.update == nil) }
   }
 
+  @Test func releasesWithoutAManifestFallBackToTheAPI() async throws {
+    let session = checkSession(response: "legacy")
+    defer { session.invalidateAndCancel() }
+    let update = try await AppUpdateService(session: session).check(currentVersion: "1.0.0")
+    #expect(update?.version == "99.0.0")
+  }
+
+  @Test(arguments: ["forbidden", "failure", "legacy-failure"])
+  func failedRequestsPreserveHTTPErrors(_ response: String) async throws {
+    let session = checkSession(response: response)
+    defer { session.invalidateAndCancel() }
+    do {
+      _ = try await AppUpdateService(session: session).check(currentVersion: "1.0.0")
+      Issue.record("Failed update request succeeded")
+    } catch let error as MonoDeckError {
+      #expect(error.code == "update-request-failed")
+      #expect(
+        error.userMessage
+          == .githubRequestFailedHTTPPleaseTryAgainLater(
+            response == "forbidden" ? 403 : 503))
+    }
+  }
+
+  @Test func invalidManifestDoesNotFallBackToTheAPI() async throws {
+    let session = checkSession(response: "invalid")
+    defer { session.invalidateAndCancel() }
+    await #expect(throws: DecodingError.self) {
+      _ = try await AppUpdateService(session: session).check(currentVersion: "1.0.0")
+    }
+  }
+
   private func checkSession(response: String = "upgrade") -> URLSession {
     let configuration = URLSessionConfiguration.ephemeral
     configuration.protocolClasses = [UpdateCheckProtocol.self]
@@ -140,19 +171,40 @@ private final class UpdateCheckProtocol: URLProtocol, @unchecked Sendable {
     queue.async { [self] in
       let completion = DispatchWorkItem { [self] in
         guard let url = request.url else { return }
-        #expect(
-          url.absoluteString == "https://api.github.com/repos/qimaotech/mono-deck/releases/latest")
         let mode = request.value(forHTTPHeaderField: "X-MonoDeck-Test-Response")
+        let legacy = ["legacy", "legacy-failure"].contains(mode)
+        let api = url.host == "api.github.com"
+        #expect(
+          url.absoluteString
+            == (api
+              ? "https://api.github.com/repos/qimaotech/mono-deck/releases/latest"
+              : "https://github.com/qimaotech/mono-deck/releases/latest/download/MonoDeck-update.json")
+        )
+        #expect(!api || legacy, "Only a missing manifest should use the API")
+        #expect(
+          request.value(forHTTPHeaderField: "Accept")
+            == (api ? "application/vnd.github+json" : "application/json"))
+        let status: Int
+        if !api && legacy {
+          status = 404
+        } else if mode == "forbidden" {
+          status = 403
+        } else {
+          status = mode == "failure" || mode == "legacy-failure" ? 503 : 200
+        }
         let version = mode == "current" ? MonoDeckVersion.current : "99.0.0"
         let response = HTTPURLResponse(
-          url: url, statusCode: mode == "failure" ? 503 : 200, httpVersion: nil, headerFields: nil)!
-        let data = Data(
-          """
-          {"tag_name":"v\(version)","draft":false,"prerelease":false,
-           "html_url":"https://github.com/qimaotech/mono-deck/releases/tag/v\(version)",
-           "assets":[{"name":"MonoDeck-\(version)-arm64.dmg","size":3,
-           "browser_download_url":"https://github.com/qimaotech/mono-deck/releases/download/v\(version)/MonoDeck-\(version)-arm64.dmg"}]}
-          """.utf8)
+          url: url, statusCode: status, httpVersion: nil, headerFields: nil)!
+        let data =
+          mode == "invalid"
+          ? Data("invalid".utf8)
+          : Data(
+            """
+            {"tag_name":"v\(version)","draft":false,"prerelease":false,
+             "html_url":"https://github.com/qimaotech/mono-deck/releases/tag/v\(version)",
+             "assets":[{"name":"MonoDeck-\(version)-arm64.dmg","size":3,
+             "browser_download_url":"https://github.com/qimaotech/mono-deck/releases/download/v\(version)/MonoDeck-\(version)-arm64.dmg"}]}
+            """.utf8)
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: data)
         client?.urlProtocolDidFinishLoading(self)

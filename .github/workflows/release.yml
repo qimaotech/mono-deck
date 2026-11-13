@@ -141,12 +141,17 @@ jobs:
           name: ${{ needs.package.outputs.dmg_name }}
           path: package
 
+      - name: Generate update manifest
+        env:
+          DMG_NAME: ${{ needs.package.outputs.dmg_name }}
+        run: python3 script/update_manifest.py "$GITHUB_REF_NAME" "package/$DMG_NAME" > package/MonoDeck-update.json
+
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
           DMG_NAME: ${{ needs.package.outputs.dmg_name }}
         run: |
-          gh release create "$GITHUB_REF_NAME" "package/$DMG_NAME" \
+          gh release create "$GITHUB_REF_NAME" "package/$DMG_NAME" "package/MonoDeck-update.json" \
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
             --title "$GITHUB_REF_NAME" \

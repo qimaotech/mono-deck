@@ -4,6 +4,36 @@ import Testing
 @testable import MonoDeckCore
 
 struct AppUpdateTests {
+  @Test func publishedManifestMatchesTheInstallerAndPreservesVerification() async throws {
+    let directory = TestEnvironment.temporaryDirectory.appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let installer = directory.appending(path: "MonoDeck-2.0.0-arm64.dmg")
+    try Data("abc".utf8).write(to: installer)
+    let script = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().appending(path: "script/update_manifest.py")
+    let runner = CommandRunner()
+    let result = try await runner.run("/usr/bin/python3", [script.path, "v2.0.0", installer.path])
+    #expect(result.status == 0)
+    let service = AppUpdateService()
+    let update = try #require(try service.update(from: result.stdout, currentVersion: "1.0.0"))
+    #expect(update.asset.size == 3)
+    #expect(
+      update.asset.digest
+        == "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+    try service.verifyDownload(at: installer, asset: update.asset)
+    try Data("abd".utf8).write(to: installer)
+    #expect(throws: MonoDeckError.self) {
+      try service.verifyDownload(at: installer, asset: update.asset)
+    }
+    let mismatched = try await runner.run(
+      "/usr/bin/python3", [script.path, "v3.0.0", installer.path])
+    #expect(mismatched.status != 0 && mismatched.stdout.isEmpty)
+    try Data().write(to: installer)
+    let empty = try await runner.run("/usr/bin/python3", [script.path, "v2.0.0", installer.path])
+    #expect(empty.status != 0 && empty.stdout.isEmpty)
+  }
+
   @Test func releaseSelectionUsesNumericVersionsAndOnlyOffersStableUpgrades() throws {
     let service = AppUpdateService()
     let data = try release(version: "1.10.0")
