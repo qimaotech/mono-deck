@@ -20,6 +20,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  scripts:
+    name: Script Tests
+    if: github.event_name == 'pull_request' || inputs.job == 'all' || inputs.job == 'test'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run Python script tests
+        run: python3 -B -m unittest discover -s script/tests -v
+
   format:
     name: Format
     if: github.event_name == 'pull_request' || inputs.job == 'all'
@@ -92,10 +106,16 @@ jobs:
 
   test:
     name: Test
-    if: github.event_name == 'pull_request' || inputs.job == 'all' || inputs.job == 'test'
+    needs: scripts
+    if: always() && (github.event_name == 'pull_request' || inputs.job == 'all' || inputs.job == 'test')
     runs-on: macos-26
     timeout-minutes: 60
     steps:
+      - name: Require script tests to pass
+        env:
+          SCRIPT_TEST_RESULT: ${{ needs.scripts.result }}
+        run: test "$SCRIPT_TEST_RESULT" = success
+
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

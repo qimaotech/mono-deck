@@ -3,32 +3,40 @@ run-name: Release · ${{ github.ref_name }}
 
 on:
   push:
-    tags: ['v*']
+    branches: [main]
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   validate:
     name: Validate release
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      release: ${{ steps.release.outputs.release }}
+      tag: ${{ steps.release.outputs.tag }}
+      commit: ${{ steps.release.outputs.commit }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
           persist-credentials: false
 
-      - name: Validate release tag and changelog
-        run: python3 script/release_notes.py "$GITHUB_REF_NAME" > /dev/null
+      - name: Detect and validate release
+        id: release
+        run: python3 script/release_workflow.py prepare "$GITHUB_EVENT_PATH" "$GITHUB_OUTPUT"
 
   package:
     name: Package
     needs: validate
+    if: needs.validate.outputs.release == 'true'
     runs-on: macos-26
     timeout-minutes: 30
     outputs:
@@ -40,6 +48,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ needs.validate.outputs.commit }}
           persist-credentials: false
 
       - name: Show toolchain
@@ -76,12 +85,14 @@ jobs:
   test:
     name: Release Test
     needs: validate
+    if: needs.validate.outputs.release == 'true'
     runs-on: macos-26
     timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ needs.validate.outputs.commit }}
           persist-credentials: false
 
       - name: Show toolchain
@@ -114,20 +125,28 @@ jobs:
 
   publish:
     name: Publish
-    needs: [package, test]
+    needs: [validate, package, test]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: write
+    concurrency:
+      group: release-publish-${{ needs.validate.outputs.tag }}
+      cancel-in-progress: false
+    env:
+      RELEASE_TAG: ${{ needs.validate.outputs.tag }}
+      RELEASE_COMMIT: ${{ needs.validate.outputs.commit }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ needs.validate.outputs.commit }}
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Prepare release notes
         run: |
-          python3 script/release_notes.py "$GITHUB_REF_NAME" > "$RUNNER_TEMP/release-notes.md"
+          python3 script/release_notes.py "$RELEASE_TAG" > "$RUNNER_TEMP/release-notes.md"
           cat >> "$RUNNER_TEMP/release-notes.md" <<'EOF'
 
           ## Installation
@@ -144,15 +163,12 @@ jobs:
       - name: Generate update manifest
         env:
           DMG_NAME: ${{ needs.package.outputs.dmg_name }}
-        run: python3 script/update_manifest.py "$GITHUB_REF_NAME" "package/$DMG_NAME" > package/MonoDeck-update.json
+        run: python3 script/update_manifest.py "$RELEASE_TAG" "package/$DMG_NAME" > package/MonoDeck-update.json
 
-      - name: Publish release
+      - name: Tag merged commit and publish release
         env:
           GH_TOKEN: ${{ github.token }}
           DMG_NAME: ${{ needs.package.outputs.dmg_name }}
         run: |
-          gh release create "$GITHUB_REF_NAME" "package/$DMG_NAME" "package/MonoDeck-update.json" \
-            --repo "$GITHUB_REPOSITORY" \
-            --verify-tag \
-            --title "$GITHUB_REF_NAME" \
-            --notes-file "$RUNNER_TEMP/release-notes.md"
+          python3 script/release_workflow.py publish "$RELEASE_TAG" "$RELEASE_COMMIT" \
+            "package/$DMG_NAME" "$RUNNER_TEMP/release-notes.md"

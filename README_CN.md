@@ -88,4 +88,9 @@ MonoDeck 维护以下工作区文件，并按需自动提交到工作区仓库�
 - **取消或部分失败**可能保留已完成的效果，请按结果列表核对已完成和待处理的项目。
 - 创建任务成员工作树时，起点提交不能包含 **Git 子模块**。
 
-版本变化见[更新日志](CHANGELOG.md)，构建与测试见[开发细则](DEVELOPMENT.md)。
+## 开发与发布
+
+- **开发者：** Fork 仓库，创建特性或修复分支，向仓库提交 PR。CI 自动检查，由维护者审核并合并。
+- **维护者：** 调用 [`$release-mono-deck`](.agents/skills/release-mono-deck/SKILL.md) 并确认版本号，技能会更新版本、构建号和变更日志，创建发布 PR。CI 通过并由维护者合并后，Release 工作流构建、测试合入的提交，再创建 tag 并发布 GitHub Release。
+
+产品版本号未提升的变更不会发版，版本变化见[更新日志](CHANGELOG.md)，构建与测试见[开发细则](DEVELOPMENT.md)。

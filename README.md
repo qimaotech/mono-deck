@@ -88,4 +88,9 @@ MonoDeck maintains the following files and commits them to the workspace reposit
 - If you **cancel an operation or it fails partway through**, completed changes may remain in place. Check the results to see what finished and what still needs attention.
 - You can only create a task member worktree from a commit without **Git submodules**.
 
-See the [changelog](CHANGELOG.md) for release changes and the [development guide](DEVELOPMENT.md) for build and test instructions.
+## Development and releases
+
+- **Contributors:** Fork the repository, create a feature or fix branch, and open a PR to the repository. CI runs automatically; maintainers review and merge the changes.
+- **Maintainers:** Invoke [`$release-mono-deck`](.agents/skills/release-mono-deck/SKILL.md), confirm the version, and let the skill update the version, build number, and changelog and open a release PR. After CI passes and a maintainer merges it, the Release workflow builds and tests the merged commit, then creates its tag and publishes the GitHub Release.
+
+Changes without a product version increase do not publish a release. See the [changelog](CHANGELOG.md) for release changes and the [development guide](DEVELOPMENT.md) for build and test instructions.

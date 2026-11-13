@@ -42,7 +42,7 @@
 - Running `run`, `debug`, `logs`, or `telemetry` without a mock stops existing MonoDeck instances first. Debug builds use separate preferences but share workspace data, locks, and the CLI with the release build. Prefer an isolated mock for temporary verification.
 - For temporary verification, confirm that the instance exits and clean up its data and helper processes even after failure or interruption. Preserve an instance when the user asks to keep it running.
 - Handle only processes and data confirmed to belong to the current verification. Stop processes only by verified identity and clean up directories only by exact path. Leave existing instances, shared caches, and external tools alone.
-- Pushing a `v*` tag triggers a CI release. See [Packaging and releases](DEVELOPMENT.md#packaging-and-releases) for the authorization scope.
+- Merging a product-version change into `main` triggers automatic tagging and publication in the repository running the workflow. Tag pushes do not trigger releases. See [Packaging and releases](DEVELOPMENT.md#packaging-and-releases) for the authorization scope.
 
 ## Task-specific references
 
